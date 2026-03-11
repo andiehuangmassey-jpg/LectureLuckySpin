@@ -137,7 +137,10 @@ code {
 .hero-actions {
   margin-top: 1.2rem;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
+  gap: 1rem 3.2rem;
 }
 
 .hero-start-btn {
@@ -177,7 +180,8 @@ button,
     background-color 180ms ease;
 }
 
-button {
+button,
+.file-input-trigger {
   border: 0;
   border-radius: 999px;
   padding: 0.92rem 1.28rem;
