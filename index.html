@@ -17,10 +17,10 @@
           Load a local roster CSV first. Student data stays in this browser session only.
         </p>
         <div class="hero-actions">
-          <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
-          <button id="load-csv-btn" class="secondary-btn" type="button">
+          <input id="csv-file-input" class="file-input" type="file" accept=".csv,text/csv" />
+          <label id="load-csv-btn" class="secondary-btn file-input-trigger" for="csv-file-input">
             Load CSV
-          </button>
+          </label>
           <button id="start-btn" class="primary-btn hero-start-btn" type="button" disabled>
             Start
           </button>

@@ -42,7 +42,6 @@ const state = {
 
 const elements = {
   statusText: document.querySelector("#status-text"),
-  loadCsvBtn: document.querySelector("#load-csv-btn"),
   csvFileInput: document.querySelector("#csv-file-input"),
   startBtn: document.querySelector("#start-btn"),
   toSpinBtn: document.querySelector("#to-spin-btn"),
@@ -85,7 +84,6 @@ function bootstrap() {
 }
 
 function bindEvents() {
-  elements.loadCsvBtn.addEventListener("click", openCsvPicker);
   elements.csvFileInput.addEventListener("change", handleCsvSelection);
   elements.startBtn.addEventListener("click", runSelectionAnimation);
   elements.toSpinBtn.addEventListener("click", moveToSpinStep);
@@ -102,10 +100,6 @@ function bindEvents() {
   elements.markCorrectBtn.addEventListener("click", () => resolveWinner(true));
   elements.markWrongBtn.addEventListener("click", () => resolveWinner(false));
   elements.dialog.addEventListener("close", handleDialogClose);
-}
-
-function openCsvPicker() {
-  elements.csvFileInput.click();
 }
 
 async function handleCsvSelection(event) {
@@ -301,7 +295,7 @@ function makeStudentRecord(headers, row, headerMap, index) {
 }
 
 async function runSelectionAnimation() {
-  if (!state.students.length || isBusy()) {
+  if (!state.students.length || state.loadingCsv || state.phase !== PHASES.step1Ready || isBusy()) {
     return;
   }
 
@@ -654,7 +648,6 @@ function updateActionState() {
   const hasRoster = state.students.length > 0;
   const busy = isBusy() || state.loadingCsv;
 
-  elements.loadCsvBtn.disabled = busy;
   elements.startBtn.disabled = !hasRoster || busy;
   elements.toSpinBtn.disabled = state.phase !== PHASES.step1Done;
   elements.spinStartBtn.disabled = state.phase !== PHASES.step2Ready;

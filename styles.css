@@ -168,6 +168,7 @@ code {
 }
 
 button,
+.file-input-trigger,
 .text-link {
   transition:
     transform 180ms ease,
@@ -185,7 +186,15 @@ button {
   cursor: pointer;
 }
 
+.file-input-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 button:hover:not(:disabled),
+.file-input-trigger:hover,
 .text-link:hover {
   transform: translateY(-1px);
 }
@@ -193,6 +202,18 @@ button:hover:not(:disabled),
 button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .primary-btn {
@@ -205,6 +226,12 @@ button:disabled {
   background: linear-gradient(135deg, #f5ebdf, #ebdbc8);
   color: var(--text);
   box-shadow: 0 10px 22px rgba(124, 104, 89, 0.12);
+}
+
+.file-input:focus-visible + .file-input-trigger,
+.file-input-trigger:focus-visible {
+  outline: 2px solid rgba(127, 145, 128, 0.9);
+  outline-offset: 4px;
 }
 
 .ghost-btn {
