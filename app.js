@@ -17,6 +17,20 @@ const PHASES = {
   step3Ready: "step3-ready",
 };
 
+const MOCK_CSV = `First Name,Last Name,ID Number,Email Address,bonus
+Amelia,Clark,2026001,amelia.clark@example.edu,0
+Noah,Turner,2026002,noah.turner@example.edu,1
+Sophia,Ramirez,2026003,sophia.ramirez@example.edu,0
+Liam,Patel,2026004,liam.patel@example.edu,0
+Olivia,Bennett,2026005,olivia.bennett@example.edu,2
+Ethan,Nguyen,2026006,ethan.nguyen@example.edu,0
+Isabella,Brooks,2026007,isabella.brooks@example.edu,0
+Mason,Carter,2026008,mason.carter@example.edu,1
+Mia,Diaz,2026009,mia.diaz@example.edu,0
+Lucas,Foster,2026010,lucas.foster@example.edu,0
+Charlotte,Hayes,2026011,charlotte.hayes@example.edu,0
+James,Kim,2026012,james.kim@example.edu,0`;
+
 const state = {
   headers: [],
   headerMap: {},
@@ -38,8 +52,6 @@ const state = {
 };
 
 const elements = {
-  csvFile: document.querySelector("#csv-file"),
-  loadDefaultBtn: document.querySelector("#load-default-btn"),
   statusText: document.querySelector("#status-text"),
   phaseNote: document.querySelector("#phase-note"),
   startBtn: document.querySelector("#start-btn"),
@@ -83,8 +95,6 @@ function bootstrap() {
 }
 
 function bindEvents() {
-  elements.csvFile.addEventListener("change", handleFileUpload);
-  elements.loadDefaultBtn.addEventListener("click", () => loadBundledCsv(false));
   elements.startBtn.addEventListener("click", runSelectionAnimation);
   elements.toSpinBtn.addEventListener("click", moveToSpinStep);
   elements.spinStartBtn.addEventListener("click", startLiveSpin);
@@ -107,22 +117,6 @@ function bindEvents() {
   });
 }
 
-async function handleFileUpload(event) {
-  const [file] = event.target.files || [];
-  if (!file) {
-    return;
-  }
-
-  state.sourceFileName = file.name;
-
-  try {
-    const text = await file.text();
-    applyCsvText(text, `Loaded ${file.name}.`);
-  } catch (error) {
-    setStatus(`Could not read ${file.name}: ${error.message}`, true);
-  }
-}
-
 async function loadBundledCsv(silent) {
   try {
     const response = await fetch("./students.csv", { cache: "no-store" });
@@ -137,9 +131,13 @@ async function loadBundledCsv(silent) {
       silent ? "students.csv loaded from the repository." : "Reloaded students.csv from the repository."
     );
   } catch (error) {
-    if (!silent) {
-      setStatus(`Could not load students.csv: ${error.message}`, true);
-    }
+    state.sourceFileName = "mock-students.csv";
+    applyCsvText(
+      MOCK_CSV,
+      silent
+        ? "students.csv could not be loaded, so the app switched to built-in mock data."
+        : "students.csv could not be loaded, so the app switched to built-in mock data."
+    );
   }
 }
 
