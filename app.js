@@ -5,35 +5,67 @@ const REQUIRED_HEADERS = {
   email: ["emailaddress", "email_address", "email address", "email"],
 };
 
+const PHASES = {
+  idle: "idle",
+  step1Ready: "step1-ready",
+  step1Drawing: "step1-drawing",
+  step1Done: "step1-done",
+  step2Ready: "step2-ready",
+  step2Spinning: "step2-spinning",
+  step2Stopping: "step2-stopping",
+  step2Stopped: "step2-stopped",
+  step3Ready: "step3-ready",
+};
+
 const state = {
   headers: [],
   headerMap: {},
   students: [],
   selectedTen: [],
   winner: null,
+  lastResult: null,
   sourceFileName: "students.csv",
-  isSpinning: false,
   repoGuess: guessRepoConfig(),
+  phase: PHASES.idle,
+  activeStep: 1,
+  currentRotation: 0,
+  pointerIndex: null,
+  spinVelocity: 330,
+  spinFrame: null,
+  spinLastTime: null,
+  animationFrame: null,
+  revealToken: 0,
 };
 
 const elements = {
   csvFile: document.querySelector("#csv-file"),
   loadDefaultBtn: document.querySelector("#load-default-btn"),
   statusText: document.querySelector("#status-text"),
+  phaseNote: document.querySelector("#phase-note"),
   startBtn: document.querySelector("#start-btn"),
-  continueBtn: document.querySelector("#continue-btn"),
+  toSpinBtn: document.querySelector("#to-spin-btn"),
+  spinStartBtn: document.querySelector("#spin-start-btn"),
+  spinStopBtn: document.querySelector("#spin-stop-btn"),
+  judgeBtn: document.querySelector("#judge-btn"),
   downloadBtn: document.querySelector("#download-btn"),
   syncBtn: document.querySelector("#sync-btn"),
   selectedGrid: document.querySelector("#selected-grid"),
   summaryList: document.querySelector("#summary-list"),
-  spinnerTrack: document.querySelector("#spinner-track"),
+  wheelShell: document.querySelector("#wheel-shell"),
+  wheelDisc: document.querySelector("#wheel-disc"),
+  wheelItems: document.querySelector("#wheel-items"),
+  wheelPlaceholder: document.querySelector("#wheel-placeholder"),
+  spinReadout: document.querySelector("#spin-readout"),
   winnerCard: document.querySelector("#winner-card"),
+  drawPanel: document.querySelector("#draw-panel"),
+  spinPanel: document.querySelector("#spin-panel"),
   activityLog: document.querySelector("#activity-log"),
   dialog: document.querySelector("#result-dialog"),
   dialogTitle: document.querySelector("#dialog-title"),
   dialogCopy: document.querySelector("#dialog-copy"),
   markCorrectBtn: document.querySelector("#mark-correct-btn"),
   markWrongBtn: document.querySelector("#mark-wrong-btn"),
+  stepPills: Array.from(document.querySelectorAll(".step-pill")),
   githubOwner: document.querySelector("#github-owner"),
   githubRepo: document.querySelector("#github-repo"),
   githubBranch: document.querySelector("#github-branch"),
@@ -46,8 +78,7 @@ bootstrap();
 function bootstrap() {
   applyRepoGuess();
   bindEvents();
-  renderSummary();
-  updateActionState();
+  renderAll();
   loadBundledCsv(true);
 }
 
@@ -55,11 +86,15 @@ function bindEvents() {
   elements.csvFile.addEventListener("change", handleFileUpload);
   elements.loadDefaultBtn.addEventListener("click", () => loadBundledCsv(false));
   elements.startBtn.addEventListener("click", runSelectionAnimation);
-  elements.continueBtn.addEventListener("click", runSpinAnimation);
+  elements.toSpinBtn.addEventListener("click", moveToSpinStep);
+  elements.spinStartBtn.addEventListener("click", startLiveSpin);
+  elements.spinStopBtn.addEventListener("click", stopLiveSpin);
+  elements.judgeBtn.addEventListener("click", moveToJudgeStep);
   elements.downloadBtn.addEventListener("click", downloadCsv);
   elements.syncBtn.addEventListener("click", () => syncToGitHub(false));
   elements.markCorrectBtn.addEventListener("click", () => resolveWinner(true));
   elements.markWrongBtn.addEventListener("click", () => resolveWinner(false));
+  elements.dialog.addEventListener("close", handleDialogClose);
 
   [
     elements.githubOwner,
@@ -79,6 +114,7 @@ async function handleFileUpload(event) {
   }
 
   state.sourceFileName = file.name;
+
   try {
     const text = await file.text();
     applyCsvText(text, `Loaded ${file.name}.`);
@@ -96,10 +132,13 @@ async function loadBundledCsv(silent) {
 
     state.sourceFileName = "students.csv";
     const text = await response.text();
-    applyCsvText(text, silent ? "Bundled students.csv loaded." : "Loaded bundled students.csv.");
+    applyCsvText(
+      text,
+      silent ? "students.csv loaded from the repository." : "Reloaded students.csv from the repository."
+    );
   } catch (error) {
     if (!silent) {
-      setStatus(`Could not load bundled students.csv: ${error.message}`, true);
+      setStatus(`Could not load students.csv: ${error.message}`, true);
     }
   }
 }
@@ -128,31 +167,36 @@ function applyCsvText(text, successMessage) {
     state.headers.push(headerMap.bonus);
   }
 
-  state.selectedTen = [];
-  state.winner = null;
-  renderSelectedStudents();
-  renderSpinnerPlaceholder();
-  renderWinnerCard();
-  renderSummary();
-  updateActionState();
+  resetFlow();
+  renderAll();
   setStatus(successMessage);
   addLog(`Roster ready with ${state.students.length} students from ${state.sourceFileName}.`);
 }
 
-function makeStudentRecord(headers, row, headerMap, index) {
-  const record = {};
-  headers.forEach((header, headerIndex) => {
-    record[header] = (row[headerIndex] || "").trim();
-  });
+function resetFlow() {
+  stopAnimations();
+  state.selectedTen = [];
+  state.winner = null;
+  state.lastResult = null;
+  state.currentRotation = 0;
+  state.pointerIndex = null;
+  state.phase = state.students.length ? PHASES.step1Ready : PHASES.idle;
+  state.activeStep = 1;
+  state.revealToken += 1;
+}
 
-  if (!record[headerMap.bonus]) {
-    record[headerMap.bonus] = "0";
+function stopAnimations() {
+  if (state.spinFrame) {
+    cancelAnimationFrame(state.spinFrame);
+    state.spinFrame = null;
   }
 
-  const bonusValue = Number.parseInt(record[headerMap.bonus], 10);
-  record[headerMap.bonus] = Number.isFinite(bonusValue) ? String(bonusValue) : "0";
-  record.__index = index;
-  return record;
+  if (state.animationFrame) {
+    cancelAnimationFrame(state.animationFrame);
+    state.animationFrame = null;
+  }
+
+  state.spinLastTime = null;
 }
 
 function parseCsv(text) {
@@ -204,19 +248,19 @@ function parseCsv(text) {
 }
 
 function mapHeaders(headers) {
-  const normalized = new Map(
-    headers.map((header) => [normalizeHeader(header), header])
-  );
-
+  const normalized = new Map(headers.map((header) => [normalizeHeader(header), header]));
   const mapped = {};
+
   Object.entries(REQUIRED_HEADERS).forEach(([key, aliases]) => {
-    const header = aliases
+    const match = aliases
       .map((alias) => normalized.get(normalizeHeader(alias)))
       .find(Boolean);
-    if (!header) {
+
+    if (!match) {
       throw new Error(`Missing required column for ${key}.`);
     }
-    mapped[key] = header;
+
+    mapped[key] = match;
   });
 
   const bonusHeader = headers.find((header) => normalizeHeader(header) === "bonus");
@@ -228,66 +272,185 @@ function normalizeHeader(value) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-async function runSelectionAnimation() {
-  if (!state.students.length || state.isSpinning) {
-    return;
+function makeStudentRecord(headers, row, headerMap, index) {
+  const record = {};
+  headers.forEach((header, headerIndex) => {
+    record[header] = (row[headerIndex] || "").trim();
+  });
+
+  if (!record[headerMap.bonus]) {
+    record[headerMap.bonus] = "0";
   }
 
-  state.selectedTen = [];
-  state.winner = null;
-  elements.selectedGrid.classList.remove("empty-state");
-  renderSpinnerPlaceholder();
-  renderWinnerCard();
-  updateActionState();
-
-  const pool = shuffle([...state.students]).slice(0, Math.min(10, state.students.length));
-  setStatus("Drawing the first ten students...");
-  addLog("Started a new 10-student draw.");
-
-  for (const student of pool) {
-    state.selectedTen.push(student);
-    renderSelectedStudents(student.__index);
-    await wait(220);
-  }
-
-  setStatus(`Selected ${state.selectedTen.length} students. Ready to spin.`);
-  addLog(`Selected ten: ${state.selectedTen.map(formatName).join(", ")}.`);
-  updateActionState();
+  const bonusValue = Number.parseInt(record[headerMap.bonus], 10);
+  record[headerMap.bonus] = Number.isFinite(bonusValue) ? String(bonusValue) : "0";
+  record.__index = index;
+  return record;
 }
 
-async function runSpinAnimation() {
-  if (state.selectedTen.length === 0 || state.isSpinning) {
+async function runSelectionAnimation() {
+  if (!state.students.length || isBusy()) {
     return;
   }
 
-  state.isSpinning = true;
+  stopAnimations();
+  state.revealToken += 1;
+  const token = state.revealToken;
+
+  state.phase = PHASES.step1Drawing;
+  state.activeStep = 1;
+  state.selectedTen = [];
+  state.winner = null;
+  state.lastResult = null;
+  state.currentRotation = 0;
+  state.pointerIndex = null;
+  renderAll();
+  setStatus("Step 1 started. Revealing 10 random students...");
+  addLog("Started a fresh 10-student reveal.");
+
+  const pool = shuffle([...state.students]).slice(0, Math.min(10, state.students.length));
+
+  for (const student of pool) {
+    if (token !== state.revealToken) {
+      return;
+    }
+
+    state.selectedTen.push(student);
+    renderSelectedStudents(student.__index);
+    await wait(230);
+  }
+
+  state.phase = PHASES.step1Done;
+  renderWheelStructure();
+  paintWheel();
+  renderFlowState();
   updateActionState();
-  setStatus("Spinning inside the selected ten...");
+  setStatus("Step 1 complete. Press Next Step to move to the live wheel.");
+  addLog(`Selected ten: ${state.selectedTen.map(formatName).join(", ")}.`);
+}
 
-  const winnerIndex = Math.floor(Math.random() * state.selectedTen.length);
-  const winner = state.selectedTen[winnerIndex];
-  const cycles = 7;
-  const repeated = Array.from({ length: cycles }, () => state.selectedTen).flat();
-  const itemHeight = 76;
-  const centerOffset = 87;
-  const startIndex = winnerIndex + state.selectedTen.length;
-  const endIndex = winnerIndex + state.selectedTen.length * (cycles - 2);
+function moveToSpinStep() {
+  if (state.phase !== PHASES.step1Done) {
+    return;
+  }
 
-  elements.spinnerTrack.innerHTML = repeated.map(renderReelItem).join("");
-  elements.spinnerTrack.style.transition = "none";
-  elements.spinnerTrack.style.transform = `translateY(${centerOffset - startIndex * itemHeight}px)`;
-  void elements.spinnerTrack.offsetHeight;
-  elements.spinnerTrack.style.transition = "transform 4.8s cubic-bezier(0.16, 1, 0.3, 1)";
-  elements.spinnerTrack.style.transform = `translateY(${centerOffset - endIndex * itemHeight}px)`;
+  state.phase = PHASES.step2Ready;
+  state.activeStep = 2;
+  renderFlowState();
+  updateActionState();
+  setStatus("Step 2 ready. Press Start Spin, then Stop whenever you want.");
+  addLog("Moved to the live wheel step.");
+  scrollIntoViewIfNeeded(elements.spinPanel);
+}
 
-  await wait(4950);
+function startLiveSpin() {
+  if (!state.selectedTen.length || state.phase !== PHASES.step2Ready) {
+    return;
+  }
 
-  state.winner = winner;
-  state.isSpinning = false;
+  stopAnimations();
+  state.phase = PHASES.step2Spinning;
+  state.activeStep = 2;
+  state.winner = null;
+  state.lastResult = null;
+  state.spinVelocity = 320 + Math.random() * 80;
+  updateActionState();
   renderWinnerCard();
+  setStatus("Wheel is spinning. Press Stop when you want the wheel to slow down.");
+  addLog("Started the live wheel.");
+
+  state.spinFrame = requestAnimationFrame(runSpinFrame);
+}
+
+function runSpinFrame(timestamp) {
+  if (state.phase !== PHASES.step2Spinning) {
+    return;
+  }
+
+  if (!state.spinLastTime) {
+    state.spinLastTime = timestamp;
+  }
+
+  const delta = timestamp - state.spinLastTime;
+  state.spinLastTime = timestamp;
+  state.currentRotation += ((state.spinVelocity + Math.sin(timestamp / 180) * 18) * delta) / 1000;
+  paintWheel();
+  state.spinFrame = requestAnimationFrame(runSpinFrame);
+}
+
+function stopLiveSpin() {
+  if (state.phase !== PHASES.step2Spinning) {
+    return;
+  }
+
+  stopAnimations();
+  state.phase = PHASES.step2Stopping;
   updateActionState();
-  addLog(`Spin result: ${formatName(winner)} is up next.`);
-  openResultDialog(winner);
+
+  const winnerIndex = getPointerIndex(state.currentRotation);
+  const slice = 360 / state.selectedTen.length;
+  const targetNormalized = modulo(-winnerIndex * slice, 360);
+  const currentNormalized = modulo(state.currentRotation, 360);
+  let delta = modulo(targetNormalized - currentNormalized, 360);
+
+  if (delta < 48) {
+    delta += 360;
+  }
+
+  const targetRotation = state.currentRotation + delta + 720;
+  const startRotation = state.currentRotation;
+  const duration = 2100;
+  const startTime = performance.now();
+
+  setStatus("Slowing down the wheel...");
+
+  const animate = (now) => {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - (1 - progress) ** 3;
+    state.currentRotation = startRotation + (targetRotation - startRotation) * eased;
+    paintWheel();
+
+    if (progress < 1) {
+      state.animationFrame = requestAnimationFrame(animate);
+      return;
+    }
+
+    state.animationFrame = null;
+    state.currentRotation = targetRotation;
+    state.pointerIndex = winnerIndex;
+    state.winner = state.selectedTen[winnerIndex];
+    state.phase = PHASES.step2Stopped;
+    renderFlowState();
+    updateActionState();
+    renderWinnerCard();
+    renderSelectedStudents();
+    setStatus(`Wheel stopped on ${formatName(state.winner)}. Press Next Step to judge the answer.`);
+    addLog(`Wheel stopped on ${formatName(state.winner)}.`);
+  };
+
+  state.animationFrame = requestAnimationFrame(animate);
+}
+
+function moveToJudgeStep() {
+  if (state.phase !== PHASES.step2Stopped || !state.winner) {
+    return;
+  }
+
+  state.phase = PHASES.step3Ready;
+  state.activeStep = 3;
+  renderFlowState();
+  updateActionState();
+  openResultDialog(state.winner);
+}
+
+function handleDialogClose() {
+  if (state.phase === PHASES.step3Ready && state.winner) {
+    state.phase = PHASES.step2Stopped;
+    state.activeStep = 2;
+    renderFlowState();
+    updateActionState();
+  }
 }
 
 function resolveWinner(isCorrect) {
@@ -295,50 +458,84 @@ function resolveWinner(isCorrect) {
     return;
   }
 
-  const student = state.winner;
   const bonusHeader = state.headerMap.bonus;
+  const bonusValue = Number.parseInt(state.winner[bonusHeader], 10) || 0;
 
   if (isCorrect) {
-    const bonusValue = Number.parseInt(student[bonusHeader], 10) || 0;
-    student[bonusHeader] = String(bonusValue + 1);
-    setStatus(`${formatName(student)} marked correct. bonus is now ${student[bonusHeader]}.`);
-    addLog(`${formatName(student)} answered correctly. bonus -> ${student[bonusHeader]}.`);
-    renderSelectedStudents(student.__index);
-    renderWinnerCard();
-    updateActionState();
+    state.winner[bonusHeader] = String(bonusValue + 1);
+    setStatus(`${formatName(state.winner)} marked correct. bonus is now ${state.winner[bonusHeader]}.`);
+    addLog(`${formatName(state.winner)} answered correctly. bonus -> ${state.winner[bonusHeader]}.`);
     maybeAutoSync();
   } else {
-    setStatus(`${formatName(student)} marked wrong. bonus unchanged.`);
-    addLog(`${formatName(student)} answered incorrectly. bonus unchanged.`);
+    setStatus(`${formatName(state.winner)} marked wrong. bonus unchanged.`);
+    addLog(`${formatName(state.winner)} answered incorrectly. bonus unchanged.`);
   }
 
-  state.winner = null;
+  state.lastResult = {
+    index: state.winner.__index,
+    correct: isCorrect,
+  };
+  state.phase = PHASES.step2Ready;
+  state.activeStep = 2;
   safeCloseDialog();
+  renderAll();
 }
 
-function maybeAutoSync() {
-  if (!hasSyncConfig()) {
-    return;
-  }
+function renderAll() {
+  renderSelectedStudents();
+  renderWheelStructure();
+  paintWheel();
+  renderWinnerCard();
+  renderFlowState();
+  renderSummary();
+  updateActionState();
+}
 
-  syncToGitHub(true).catch((error) => {
-    setStatus(`Bonus updated locally, but GitHub sync failed: ${error.message}`, true);
+function renderFlowState() {
+  const step1Status =
+    state.phase === PHASES.step1Drawing || state.activeStep === 1
+      ? "is-active"
+      : state.selectedTen.length
+        ? "is-complete"
+        : "";
+  const step2Status =
+    state.activeStep === 2 && state.phase !== PHASES.step3Ready
+      ? "is-active"
+      : state.winner || state.lastResult
+        ? "is-complete"
+        : "";
+  const step3Status =
+    state.phase === PHASES.step3Ready ? "is-active" : state.lastResult ? "is-complete" : "";
+
+  elements.stepPills.forEach((pill) => {
+    pill.className = "step-pill";
+    const step = Number.parseInt(pill.dataset.step, 10);
+    const status = step === 1 ? step1Status : step === 2 ? step2Status : step3Status;
+    if (status) {
+      pill.classList.add(status);
+    }
   });
+
+  elements.drawPanel.classList.toggle("is-active", state.activeStep === 1);
+  elements.drawPanel.classList.toggle("is-dimmed", state.activeStep > 1);
+  elements.spinPanel.classList.toggle("is-active", state.activeStep >= 2);
+  elements.spinPanel.classList.toggle("is-dimmed", state.activeStep < 2);
 }
 
-function renderSelectedStudents(activeIndex) {
+function renderSelectedStudents(revealIndex) {
   if (!state.selectedTen.length) {
     elements.selectedGrid.className = "selected-grid empty-state";
-    elements.selectedGrid.innerHTML = "<p>Load a roster, then press Start.</p>";
+    elements.selectedGrid.innerHTML = "<p>Press Start to begin the first draw.</p>";
     return;
   }
 
   elements.selectedGrid.className = "selected-grid";
   elements.selectedGrid.innerHTML = state.selectedTen
     .map((student) => {
-      const activeClass = activeIndex === student.__index ? ' style="outline: 2px solid rgba(135, 117, 106, 0.24)"' : "";
+      const isReveal = revealIndex === student.__index;
+      const isSpeaker = state.winner && state.winner.__index === student.__index;
       return `
-        <article class="student-card"${activeClass}>
+        <article class="student-card${isReveal ? " is-focus" : ""}${isSpeaker ? " is-speaker" : ""}">
           <span class="badge">+${student[state.headerMap.bonus]}</span>
           <h3>${escapeHtml(formatName(student))}</h3>
           <div class="meta">
@@ -351,32 +548,90 @@ function renderSelectedStudents(activeIndex) {
     .join("");
 }
 
-function renderSpinnerPlaceholder() {
-  elements.spinnerTrack.innerHTML =
-    '<div class="spinner-placeholder">Press Continue after the first draw.</div>';
-  elements.spinnerTrack.style.transition = "none";
-  elements.spinnerTrack.style.transform = "translateY(0)";
+function renderWheelStructure() {
+  if (!state.selectedTen.length) {
+    elements.wheelShell.classList.add("is-empty");
+    elements.wheelItems.innerHTML = "";
+    elements.wheelDisc.style.background = "";
+    return;
+  }
+
+  elements.wheelShell.classList.remove("is-empty");
+  elements.wheelDisc.style.background = buildWheelGradient(state.selectedTen.length);
+  elements.wheelItems.innerHTML = state.selectedTen
+    .map((student, index) => {
+      const angle = (360 / state.selectedTen.length) * index;
+      return `
+        <div
+          class="wheel-item"
+          style="transform: translate(-50%, -50%) rotate(${angle}deg) translateY(calc(var(--wheel-radius) * -1));"
+        >
+          <span style="transform: rotate(${-angle}deg);">
+            ${escapeHtml(student[state.headerMap.firstName])}<br />
+            ${escapeHtml(student[state.headerMap.lastName])}
+          </span>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function paintWheel() {
+  if (!state.selectedTen.length) {
+    renderSpinReadout();
+    return;
+  }
+
+  elements.wheelDisc.style.transform = `rotate(${state.currentRotation}deg)`;
+  state.pointerIndex = getPointerIndex(state.currentRotation);
+  renderSpinReadout();
+}
+
+function renderSpinReadout() {
+  if (!state.selectedTen.length || state.pointerIndex === null) {
+    elements.spinReadout.className = "spin-readout muted";
+    elements.spinReadout.innerHTML =
+      "<p>The live pointer will show who is under the arrow.</p><strong>Waiting for the wheel</strong>";
+    return;
+  }
+
+  const student = state.selectedTen[state.pointerIndex];
+  const isLive = state.phase === PHASES.step2Spinning || state.phase === PHASES.step2Stopping;
+  elements.spinReadout.className = `spin-readout${isLive ? "" : " muted"}`;
+  elements.spinReadout.innerHTML = `
+    <p>${isLive ? "Pointer is currently on" : "Pointer is resting on"}</p>
+    <strong>${escapeHtml(formatName(student))}</strong>
+  `;
 }
 
 function renderWinnerCard() {
   if (!state.winner) {
     elements.winnerCard.className = "winner-card muted";
     elements.winnerCard.innerHTML = `
-      <p class="winner-label">Next speaker</p>
-      <h3>Not selected yet</h3>
-      <p>Spin after the first draw.</p>
+      <p class="winner-label">Speaker</p>
+      <h3>Waiting for the wheel</h3>
+      <p>Stop the wheel first, then continue to the judgment dialog.</p>
     `;
     return;
   }
 
-  const student = state.winner;
+  const resultNote =
+    state.lastResult && state.lastResult.index === state.winner.__index
+      ? `<p>Latest result: ${state.lastResult.correct ? "Correct" : "Wrong"}</p>`
+      : "";
+  const label =
+    state.phase === PHASES.step2Stopped || state.phase === PHASES.step3Ready
+      ? "Current speaker"
+      : "Last speaker";
+
   elements.winnerCard.className = "winner-card";
   elements.winnerCard.innerHTML = `
-    <p class="winner-label">Next speaker</p>
-    <h3>${escapeHtml(formatName(student))}</h3>
-    <p>ID: ${escapeHtml(student[state.headerMap.idNumber])}</p>
-    <p>${escapeHtml(student[state.headerMap.email])}</p>
-    <p>Current bonus: ${escapeHtml(student[state.headerMap.bonus])}</p>
+    <p class="winner-label">${label}</p>
+    <h3>${escapeHtml(formatName(state.winner))}</h3>
+    <p>ID: ${escapeHtml(state.winner[state.headerMap.idNumber])}</p>
+    <p>${escapeHtml(state.winner[state.headerMap.email])}</p>
+    <p>Current bonus: ${escapeHtml(state.winner[state.headerMap.bonus])}</p>
+    ${resultNote}
   `;
 }
 
@@ -393,14 +648,78 @@ function renderSummary() {
 
   elements.summaryList.innerHTML = `
     <li>${state.students.length} students loaded from ${escapeHtml(state.sourceFileName)}.</li>
-    <li>${state.selectedTen.length} students currently on the stage.</li>
+    <li>${state.selectedTen.length} students are currently on the shortlist.</li>
     <li>Total recorded bonus points: ${bonusTotal}.</li>
   `;
+}
+
+function updateActionState() {
+  const hasRoster = state.students.length > 0;
+  const busy = isBusy();
+
+  elements.startBtn.disabled = !hasRoster || busy;
+  elements.toSpinBtn.disabled = state.phase !== PHASES.step1Done;
+  elements.spinStartBtn.disabled = state.phase !== PHASES.step2Ready;
+  elements.spinStopBtn.disabled = state.phase !== PHASES.step2Spinning;
+  elements.judgeBtn.disabled = state.phase !== PHASES.step2Stopped;
+  elements.downloadBtn.disabled = !hasRoster || busy;
+  elements.syncBtn.disabled = !hasRoster || !hasSyncConfig() || busy;
+  elements.phaseNote.textContent = getPhaseNote();
+}
+
+function getPhaseNote() {
+  switch (state.phase) {
+    case PHASES.step1Ready:
+      return "Press Start to reveal the 10 random students.";
+    case PHASES.step1Drawing:
+      return "Step 1 is running. The shortlist is being revealed card by card.";
+    case PHASES.step1Done:
+      return "Step 1 is complete. Press Next Step to move to the live wheel.";
+    case PHASES.step2Ready:
+      return "Step 2 is ready. Press Start Spin, then Stop when you want the wheel to settle.";
+    case PHASES.step2Spinning:
+      return "The wheel is spinning. Press Stop to slow it down and choose the speaker.";
+    case PHASES.step2Stopping:
+      return "The wheel is slowing down. Wait for the final speaker to lock in.";
+    case PHASES.step2Stopped:
+      return "A speaker is selected. Press Next Step to open the judgment dialog.";
+    case PHASES.step3Ready:
+      return "The dialog is open. Mark the answer as correct or wrong.";
+    default:
+      return "Load the roster, then start the first reveal.";
+  }
+}
+
+function isBusy() {
+  return [
+    PHASES.step1Drawing,
+    PHASES.step2Spinning,
+    PHASES.step2Stopping,
+    PHASES.step3Ready,
+  ].includes(state.phase);
+}
+
+function getPointerIndex(rotation) {
+  if (!state.selectedTen.length) {
+    return null;
+  }
+
+  const slice = 360 / state.selectedTen.length;
+  return normalizeIndex(Math.round(-rotation / slice), state.selectedTen.length);
+}
+
+function normalizeIndex(value, length) {
+  return ((value % length) + length) % length;
+}
+
+function modulo(value, divisor) {
+  return ((value % divisor) + divisor) % divisor;
 }
 
 function openResultDialog(student) {
   elements.dialogTitle.textContent = `Did ${formatName(student)} answer correctly?`;
   elements.dialogCopy.textContent = `${student[state.headerMap.idNumber]} · ${student[state.headerMap.email]}`;
+
   if (typeof elements.dialog.showModal === "function") {
     elements.dialog.showModal();
     return;
@@ -410,25 +729,15 @@ function openResultDialog(student) {
 }
 
 function safeCloseDialog() {
-  if (elements.dialog.open) {
-    if (typeof elements.dialog.close === "function") {
-      elements.dialog.close();
-    } else {
-      elements.dialog.removeAttribute("open");
-    }
+  if (!elements.dialog.open) {
+    return;
   }
-}
 
-function renderReelItem(student) {
-  return `
-    <div class="reel-item">
-      <div>
-        <h3>${escapeHtml(formatName(student))}</h3>
-        <p>${escapeHtml(student[state.headerMap.idNumber])}</p>
-      </div>
-      <span class="badge">+${student[state.headerMap.bonus]}</span>
-    </div>
-  `;
+  if (typeof elements.dialog.close === "function") {
+    elements.dialog.close();
+  } else {
+    elements.dialog.removeAttribute("open");
+  }
 }
 
 function downloadCsv() {
@@ -444,7 +753,7 @@ function downloadCsv() {
   link.download = state.sourceFileName.replace(/\.csv$/i, "") + "-updated.csv";
   link.click();
   URL.revokeObjectURL(url);
-  addLog("Downloaded updated CSV.");
+  addLog("Downloaded the updated CSV.");
 }
 
 async function syncToGitHub(isAutomatic) {
@@ -471,9 +780,9 @@ async function syncToGitHub(isAutomatic) {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
+  const encodedPath = encodeGitHubPath(path);
 
   let sha;
-  const encodedPath = encodeGitHubPath(path);
   const currentResponse = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}`,
     { headers }
@@ -484,12 +793,11 @@ async function syncToGitHub(isAutomatic) {
     sha = currentData.sha;
   } else if (currentResponse.status !== 404) {
     const errorBody = await currentResponse.json().catch(() => ({}));
-    throw new Error(errorBody.message || "Could not read current file from GitHub.");
+    throw new Error(errorBody.message || "Could not read the current file from GitHub.");
   }
 
-  const message = `Update bonus scores from Lecture Lucky Spin (${new Date().toISOString()})`;
   const payload = {
-    message,
+    message: `Update bonus scores from Lecture Lucky Spin (${new Date().toISOString()})`,
     branch,
     content: toBase64(csv),
     sha,
@@ -509,41 +817,19 @@ async function syncToGitHub(isAutomatic) {
     throw new Error(errorBody.message || "GitHub rejected the file update.");
   }
 
-  const mode = isAutomatic ? "Auto-synced" : "Synced";
-  setStatus(`${mode} bonus updates to ${owner}/${repo}:${path}.`);
-  addLog(`${mode} CSV back to GitHub.`);
+  const prefix = isAutomatic ? "Auto-synced" : "Synced";
+  setStatus(`${prefix} bonus updates to ${owner}/${repo}:${path}.`);
+  addLog(`${prefix} CSV back to GitHub.`);
 }
 
-function buildCsv() {
-  const headers = [...state.headers];
-  if (!headers.includes(state.headerMap.bonus)) {
-    headers.push(state.headerMap.bonus);
+function maybeAutoSync() {
+  if (!hasSyncConfig()) {
+    return;
   }
 
-  const lines = [
-    headers.map(escapeCsv).join(","),
-    ...state.students.map((student) => headers.map((header) => escapeCsv(student[header] || "")).join(",")),
-  ];
-
-  return lines.join("\n");
-}
-
-function escapeCsv(value) {
-  const stringValue = String(value);
-  if (/[",\n\r]/.test(stringValue)) {
-    return `"${stringValue.replace(/"/g, '""')}"`;
-  }
-  return stringValue;
-}
-
-function updateActionState() {
-  const hasRoster = state.students.length > 0;
-  const hasSelection = state.selectedTen.length > 0;
-  elements.startBtn.disabled = !hasRoster || state.isSpinning;
-  elements.continueBtn.disabled = !hasSelection || state.isSpinning;
-  elements.downloadBtn.disabled = !hasRoster || state.isSpinning;
-  elements.syncBtn.disabled = !hasRoster || !hasSyncConfig() || state.isSpinning;
-  renderSummary();
+  syncToGitHub(true).catch((error) => {
+    setStatus(`Bonus updated locally, but GitHub sync failed: ${error.message}`, true);
+  });
 }
 
 function hasSyncConfig() {
@@ -552,6 +838,28 @@ function hasSyncConfig() {
     elements.githubRepo.value.trim() &&
     elements.githubToken.value.trim()
   );
+}
+
+function buildCsv() {
+  const headers = [...state.headers];
+  if (!headers.includes(state.headerMap.bonus)) {
+    headers.push(state.headerMap.bonus);
+  }
+
+  const rows = [
+    headers.map(escapeCsv).join(","),
+    ...state.students.map((student) => headers.map((header) => escapeCsv(student[header] || "")).join(",")),
+  ];
+
+  return rows.join("\n");
+}
+
+function escapeCsv(value) {
+  const stringValue = String(value);
+  if (/[",\n\r]/.test(stringValue)) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  return stringValue;
 }
 
 function formatName(student) {
@@ -569,6 +877,7 @@ function addLog(message) {
   if (elements.activityLog.textContent.includes("No activity yet.")) {
     elements.activityLog.innerHTML = "";
   }
+
   elements.activityLog.prepend(entry);
 }
 
@@ -588,6 +897,22 @@ function shuffle(list) {
     [array[index], array[swapIndex]] = [array[swapIndex], array[index]];
   }
   return array;
+}
+
+function buildWheelGradient(count) {
+  const colors = [
+    "rgba(168, 179, 160, 0.72)",
+    "rgba(199, 158, 151, 0.72)",
+    "rgba(204, 183, 163, 0.72)",
+    "rgba(143, 157, 155, 0.72)",
+  ];
+  const slice = 360 / count;
+
+  return `conic-gradient(from -90deg, ${Array.from({ length: count }, (_, index) => {
+    const start = slice * index;
+    const end = slice * (index + 1);
+    return `${colors[index % colors.length]} ${start}deg ${end}deg`;
+  }).join(", ")})`;
 }
 
 function toBase64(value) {
@@ -637,4 +962,10 @@ function applyRepoGuess() {
   elements.githubRepo.value = state.repoGuess.repo;
   elements.githubBranch.value = state.repoGuess.branch;
   elements.githubPath.value = state.repoGuess.path;
+}
+
+function scrollIntoViewIfNeeded(element) {
+  if (typeof element.scrollIntoView === "function") {
+    element.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
