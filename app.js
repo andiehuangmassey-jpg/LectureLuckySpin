@@ -102,7 +102,9 @@ function bindEvents() {
   elements.spinStopBtn.addEventListener("click", stopLiveSpin);
   elements.showStudentBtn.addEventListener("click", openWinnerDialog);
   elements.dialogNextBtn.addEventListener("click", moveToJudgeStep);
-  elements.downloadBtn.addEventListener("click", downloadCsv);
+  if (elements.downloadBtn) {
+    elements.downloadBtn.addEventListener("click", downloadCsv);
+  }
   elements.closeSessionButtons.forEach((button) => {
     button.addEventListener("click", closeSessionOverlay);
   });
@@ -637,7 +639,9 @@ function updateActionState() {
   elements.spinStartBtn.disabled = state.phase !== PHASES.step2Ready;
   elements.spinStopBtn.disabled = state.phase !== PHASES.step2Spinning;
   elements.showStudentBtn.disabled = state.phase !== PHASES.step2Stopped;
-  elements.downloadBtn.disabled = !hasRoster || busy;
+  if (elements.downloadBtn) {
+    elements.downloadBtn.disabled = !hasRoster || busy;
+  }
 }
 
 function getPhaseNote() {
