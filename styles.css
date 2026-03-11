@@ -62,9 +62,12 @@ code {
 }
 
 .app-shell {
-  width: min(1240px, calc(100vw - 2rem));
+  width: min(980px, calc(100vw - 2rem));
   margin: 0 auto;
-  padding: 1.4rem 0 3rem;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.4rem 0;
   position: relative;
   z-index: 1;
 }
@@ -80,8 +83,8 @@ code {
 
 .hero-panel {
   border-radius: 36px;
-  padding: 2rem 2rem 1.8rem;
-  margin-bottom: 1rem;
+  padding: 3rem 2.4rem;
+  text-align: center;
 }
 
 .hero-panel h1,
@@ -107,8 +110,8 @@ code {
 }
 
 .hero-copy {
-  max-width: 58rem;
-  margin: 1rem 0 0;
+  max-width: 34rem;
+  margin: 1rem auto 0;
   line-height: 1.7;
   color: var(--text);
 }
@@ -116,9 +119,7 @@ code {
 .hero-actions {
   margin-top: 1.2rem;
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: center;
+  justify-content: center;
 }
 
 .hero-start-btn {
@@ -126,111 +127,16 @@ code {
   font-size: 1rem;
 }
 
-.step-strip,
-.utility-grid,
-.bottom-grid {
-  display: grid;
-  gap: 1.1rem;
-  margin-bottom: 1.1rem;
-}
-
-.step-strip {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.utility-grid,
-.bottom-grid {
-  grid-template-columns: 1fr;
-}
-
-.step-pill,
 .panel {
   border-radius: var(--radius-lg);
-}
-
-.step-pill {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  padding: 1rem 1.1rem;
-  opacity: 0.56;
-  transform: translateY(6px);
-  transition:
-    opacity 220ms ease,
-    transform 220ms ease,
-    border-color 220ms ease,
-    background-color 220ms ease;
-}
-
-.step-pill.is-active,
-.step-pill.is-complete {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.step-pill.is-active {
-  border-color: rgba(127, 145, 128, 0.34);
-  background: linear-gradient(135deg, rgba(168, 179, 160, 0.22), rgba(255, 251, 246, 0.88));
-}
-
-.step-pill.is-complete {
-  border-color: rgba(199, 158, 151, 0.3);
-}
-
-.step-index {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 251, 246, 0.86);
-  color: var(--muted);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.step-pill p,
-.winner-card p,
-.panel-heading p,
-.spin-readout p {
-  margin: 0;
-}
-
-.step-pill p {
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.78rem;
-}
-
-.step-pill strong {
-  display: block;
-  margin-top: 0.24rem;
-  font-size: 0.98rem;
 }
 
 .panel {
   padding: 1.3rem;
 }
 
-.controls-panel {
-  padding-top: 1.1rem;
-}
-
-.panel-heading h2 {
-  margin: 0;
-  font-size: 1.22rem;
-}
-
-.panel-heading p {
-  margin-top: 0.3rem;
-  line-height: 1.55;
-  color: var(--muted);
-}
-
-.field-stack,
 .button-row,
-.sync-grid {
+.modal-actions {
   margin-top: 1rem;
 }
 
@@ -240,29 +146,6 @@ code {
   flex-wrap: wrap;
   gap: 0.8rem;
   align-items: center;
-}
-
-.file-field,
-.sync-grid label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-
-.file-field input,
-.sync-grid input {
-  border: 1px solid rgba(96, 82, 71, 0.18);
-  background: rgba(255, 251, 246, 0.78);
-  color: var(--text);
-  border-radius: 999px;
-  padding: 0.82rem 1rem;
-  font-size: 0.95rem;
-}
-
-.file-field input {
-  min-width: 280px;
 }
 
 button,
@@ -310,35 +193,14 @@ button:disabled {
   color: var(--muted);
 }
 
-.text-link,
 .status-text,
-.subtle,
-.summary-list,
 .meta,
-.spin-readout,
-.log-item time {
+.spin-readout {
   color: var(--muted);
 }
 
-.hero-actions .status-text {
-  margin: 0;
-  max-width: 36rem;
-}
-
-.text-link {
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.status-text,
-.subtle {
+.status-text {
   line-height: 1.6;
-}
-
-.summary-list {
-  margin: 1rem 0 0;
-  padding-left: 1.1rem;
-  line-height: 1.7;
 }
 
 .selected-grid {
@@ -553,60 +415,6 @@ button:disabled {
   color: var(--muted);
 }
 
-.winner-card {
-  margin-top: 1rem;
-  border-radius: 24px;
-  padding: 1.05rem 1.18rem;
-  background: linear-gradient(135deg, rgba(168, 179, 160, 0.2), rgba(199, 158, 151, 0.18));
-  border: 1px solid rgba(96, 82, 71, 0.12);
-}
-
-.winner-card.muted {
-  background: rgba(255, 251, 246, 0.74);
-}
-
-.winner-label {
-  margin-bottom: 0.38rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  font-size: 0.82rem;
-}
-
-.sync-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
-}
-
-.token-field {
-  grid-column: 1 / -1;
-}
-
-.activity-log {
-  margin-top: 1rem;
-  display: grid;
-  gap: 0.8rem;
-}
-
-.log-item {
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(96, 82, 71, 0.08);
-  background: rgba(255, 251, 246, 0.76);
-  padding: 0.88rem 1rem;
-}
-
-.log-item p {
-  margin: 0;
-  line-height: 1.55;
-  color: var(--text);
-}
-
-.log-item time {
-  display: block;
-  margin-bottom: 0.26rem;
-  font-size: 0.84rem;
-}
-
 .result-dialog {
   width: min(440px, calc(100vw - 2rem));
   border: 1px solid rgba(96, 82, 71, 0.14);
@@ -627,6 +435,11 @@ button:disabled {
   flex-wrap: wrap;
   gap: 0.8rem;
   margin-top: 1.1rem;
+}
+
+.hero-status {
+  max-width: 34rem;
+  margin: 0.9rem auto 0;
 }
 
 body.overlay-open {
@@ -693,6 +506,36 @@ body.overlay-open {
   margin-top: 1.15rem;
 }
 
+.dialog-student-card {
+  margin-top: 0.8rem;
+}
+
+.dialog-student-inner {
+  border-radius: 22px;
+  border: 1px solid rgba(96, 82, 71, 0.1);
+  background:
+    linear-gradient(160deg, rgba(255, 252, 247, 0.96), rgba(234, 226, 214, 0.84)),
+    var(--panel);
+  padding: 1rem;
+  box-shadow: 0 16px 34px rgba(111, 92, 78, 0.08);
+}
+
+.dialog-student-inner h3 {
+  margin: 0.7rem 0 0.25rem;
+  font-family: "Iowan Old Style", "Palatino Linotype", serif;
+  font-size: 1.45rem;
+}
+
+.dialog-student-inner p {
+  margin: 0.2rem 0;
+  color: var(--muted);
+}
+
+.dialog-question {
+  margin: 1rem 0 0;
+  color: var(--text);
+}
+
 @keyframes card-in {
   from {
     opacity: 0;
@@ -716,13 +559,6 @@ body.overlay-open {
 }
 
 @media (max-width: 1050px) {
-  .step-strip,
-  .utility-grid,
-  .bottom-grid,
-  .sync-grid {
-    grid-template-columns: 1fr;
-  }
-
   .wheel-shell {
     min-height: 500px;
   }
@@ -741,16 +577,6 @@ body.overlay-open {
 
   .step-window {
     padding: 1.05rem;
-  }
-
-  .step-pill {
-    padding: 0.9rem 1rem;
-  }
-
-  .file-field input,
-  .sync-grid input {
-    min-width: 0;
-    width: 100%;
   }
 
   :root {

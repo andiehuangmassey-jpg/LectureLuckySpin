@@ -42,6 +42,7 @@ const state = {
   repoGuess: guessRepoConfig(),
   phase: PHASES.idle,
   activeStep: 1,
+  winnerDialogMode: "preview",
   currentRotation: 0,
   pointerIndex: null,
   spinVelocity: 330,
@@ -54,38 +55,35 @@ const state = {
 
 const elements = {
   statusText: document.querySelector("#status-text"),
-  phaseNote: document.querySelector("#phase-note"),
   startBtn: document.querySelector("#start-btn"),
   toSpinBtn: document.querySelector("#to-spin-btn"),
   spinStartBtn: document.querySelector("#spin-start-btn"),
   spinStopBtn: document.querySelector("#spin-stop-btn"),
-  judgeBtn: document.querySelector("#judge-btn"),
+  showStudentBtn: document.querySelector("#show-student-btn"),
   downloadBtn: document.querySelector("#download-btn"),
-  syncBtn: document.querySelector("#sync-btn"),
+  windowStepLabel: document.querySelector("#window-step-label"),
+  windowTitle: document.querySelector("#window-title"),
+  windowCopy: document.querySelector("#window-copy"),
+  drawContent: document.querySelector("#draw-content"),
+  spinContent: document.querySelector("#spin-content"),
+  drawActions: document.querySelector("#draw-actions"),
+  spinActions: document.querySelector("#spin-actions"),
   selectedGrid: document.querySelector("#selected-grid"),
-  summaryList: document.querySelector("#summary-list"),
   wheelShell: document.querySelector("#wheel-shell"),
   wheelDisc: document.querySelector("#wheel-disc"),
   wheelItems: document.querySelector("#wheel-items"),
   wheelPlaceholder: document.querySelector("#wheel-placeholder"),
   spinReadout: document.querySelector("#spin-readout"),
-  winnerCard: document.querySelector("#winner-card"),
   sessionOverlay: document.querySelector("#session-overlay"),
-  drawPanel: document.querySelector("#draw-panel"),
-  spinPanel: document.querySelector("#spin-panel"),
   closeSessionButtons: Array.from(document.querySelectorAll("[data-close-session], #close-session-btn")),
-  activityLog: document.querySelector("#activity-log"),
-  dialog: document.querySelector("#result-dialog"),
+  dialog: document.querySelector("#winner-dialog"),
+  dialogStepLabel: document.querySelector("#dialog-step-label"),
   dialogTitle: document.querySelector("#dialog-title"),
   dialogCopy: document.querySelector("#dialog-copy"),
+  dialogQuestion: document.querySelector("#dialog-question"),
+  dialogNextBtn: document.querySelector("#dialog-next-btn"),
   markCorrectBtn: document.querySelector("#mark-correct-btn"),
   markWrongBtn: document.querySelector("#mark-wrong-btn"),
-  stepPills: Array.from(document.querySelectorAll(".step-pill")),
-  githubOwner: document.querySelector("#github-owner"),
-  githubRepo: document.querySelector("#github-repo"),
-  githubBranch: document.querySelector("#github-branch"),
-  githubPath: document.querySelector("#github-path"),
-  githubToken: document.querySelector("#github-token"),
 };
 
 bootstrap();
@@ -102,25 +100,15 @@ function bindEvents() {
   elements.toSpinBtn.addEventListener("click", moveToSpinStep);
   elements.spinStartBtn.addEventListener("click", startLiveSpin);
   elements.spinStopBtn.addEventListener("click", stopLiveSpin);
-  elements.judgeBtn.addEventListener("click", moveToJudgeStep);
+  elements.showStudentBtn.addEventListener("click", openWinnerDialog);
+  elements.dialogNextBtn.addEventListener("click", moveToJudgeStep);
   elements.downloadBtn.addEventListener("click", downloadCsv);
-  elements.syncBtn.addEventListener("click", () => syncToGitHub(false));
   elements.closeSessionButtons.forEach((button) => {
     button.addEventListener("click", closeSessionOverlay);
   });
   elements.markCorrectBtn.addEventListener("click", () => resolveWinner(true));
   elements.markWrongBtn.addEventListener("click", () => resolveWinner(false));
   elements.dialog.addEventListener("close", handleDialogClose);
-
-  [
-    elements.githubOwner,
-    elements.githubRepo,
-    elements.githubBranch,
-    elements.githubPath,
-    elements.githubToken,
-  ].forEach((input) => {
-    input.addEventListener("input", updateActionState);
-  });
 }
 
 async function loadBundledCsv(silent) {
@@ -141,7 +129,6 @@ async function loadBundledCsv(silent) {
   } catch (error) {
     state.sourceFileName = "mock-students.csv";
     setStatus("students.csv could not be loaded, so the app is using built-in mock data.", true);
-    addLog(`Repository CSV load failed: ${error.message}. Continued with mock data.`);
   }
 }
 
@@ -172,7 +159,6 @@ function applyCsvText(text, successMessage) {
   resetFlow();
   renderAll();
   setStatus(successMessage);
-  addLog(`Roster ready with ${state.students.length} students from ${state.sourceFileName}.`);
 }
 
 function resetFlow() {
@@ -184,6 +170,7 @@ function resetFlow() {
   state.pointerIndex = null;
   state.phase = state.students.length ? PHASES.step1Ready : PHASES.idle;
   state.activeStep = 1;
+  state.winnerDialogMode = "preview";
   state.overlayOpen = false;
   state.revealToken += 1;
 }
@@ -303,6 +290,7 @@ async function runSelectionAnimation() {
   state.overlayOpen = true;
   state.phase = PHASES.step1Drawing;
   state.activeStep = 1;
+  state.winnerDialogMode = "preview";
   state.selectedTen = [];
   state.winner = null;
   state.lastResult = null;
@@ -310,7 +298,6 @@ async function runSelectionAnimation() {
   state.pointerIndex = null;
   renderAll();
   setStatus("Step 1 started. Revealing 10 random students...");
-  addLog("Started a fresh 10-student reveal.");
 
   const pool = shuffle([...state.students]).slice(0, Math.min(10, state.students.length));
 
@@ -330,7 +317,6 @@ async function runSelectionAnimation() {
   renderFlowState();
   updateActionState();
   setStatus("Step 1 complete. Press Next Step to move to the live wheel.");
-  addLog(`Selected ten: ${state.selectedTen.map(formatName).join(", ")}.`);
 }
 
 function moveToSpinStep() {
@@ -344,7 +330,6 @@ function moveToSpinStep() {
   renderFlowState();
   updateActionState();
   setStatus("Step 2 ready. Press Start Spin, then Stop whenever you want.");
-  addLog("Moved to the live wheel step.");
 }
 
 function startLiveSpin() {
@@ -357,11 +342,10 @@ function startLiveSpin() {
   state.activeStep = 2;
   state.winner = null;
   state.lastResult = null;
+  state.winnerDialogMode = "preview";
   state.spinVelocity = 320 + Math.random() * 80;
   updateActionState();
-  renderWinnerCard();
   setStatus("Wheel is spinning. Press Stop when you want the wheel to slow down.");
-  addLog("Started the live wheel.");
 
   state.spinFrame = requestAnimationFrame(runSpinFrame);
 }
@@ -425,28 +409,28 @@ function stopLiveSpin() {
     state.pointerIndex = winnerIndex;
     state.winner = state.selectedTen[winnerIndex];
     state.phase = PHASES.step2Stopped;
+    state.winnerDialogMode = "preview";
     renderFlowState();
     updateActionState();
-    renderWinnerCard();
     renderSelectedStudents();
-    setStatus(`Wheel stopped on ${formatName(state.winner)}. Press Next Step to judge the answer.`);
-    addLog(`Wheel stopped on ${formatName(state.winner)}.`);
+    setStatus(`Wheel stopped on ${formatName(state.winner)}.`);
+    openWinnerDialog();
   };
 
   state.animationFrame = requestAnimationFrame(animate);
 }
 
 function moveToJudgeStep() {
-  if (state.phase !== PHASES.step2Stopped || !state.winner) {
+  if (!state.winner || state.phase !== PHASES.step2Stopped) {
     return;
   }
 
-  state.overlayOpen = true;
   state.phase = PHASES.step3Ready;
   state.activeStep = 3;
+  state.winnerDialogMode = "judge";
   renderFlowState();
   updateActionState();
-  openResultDialog(state.winner);
+  renderWinnerDialog();
 }
 
 function closeSessionOverlay() {
@@ -460,6 +444,7 @@ function handleDialogClose() {
   if (state.phase === PHASES.step3Ready && state.winner) {
     state.phase = PHASES.step2Stopped;
     state.activeStep = 2;
+    state.winnerDialogMode = "preview";
     renderFlowState();
     updateActionState();
   }
@@ -476,11 +461,8 @@ function resolveWinner(isCorrect) {
   if (isCorrect) {
     state.winner[bonusHeader] = String(bonusValue + 1);
     setStatus(`${formatName(state.winner)} marked correct. bonus is now ${state.winner[bonusHeader]}.`);
-    addLog(`${formatName(state.winner)} answered correctly. bonus -> ${state.winner[bonusHeader]}.`);
-    maybeAutoSync();
   } else {
     setStatus(`${formatName(state.winner)} marked wrong. bonus unchanged.`);
-    addLog(`${formatName(state.winner)} answered incorrectly. bonus unchanged.`);
   }
 
   state.lastResult = {
@@ -489,6 +471,7 @@ function resolveWinner(isCorrect) {
   };
   state.phase = PHASES.step2Ready;
   state.activeStep = 2;
+  state.winnerDialogMode = "preview";
   safeCloseDialog();
   renderAll();
 }
@@ -497,44 +480,32 @@ function renderAll() {
   renderSelectedStudents();
   renderWheelStructure();
   paintWheel();
-  renderWinnerCard();
+  renderWinnerDialog();
   renderFlowState();
-  renderSummary();
   updateActionState();
 }
 
 function renderFlowState() {
-  const step1Status =
-    state.phase === PHASES.step1Drawing || state.activeStep === 1
-      ? "is-active"
-      : state.selectedTen.length
-        ? "is-complete"
-        : "";
-  const step2Status =
-    state.activeStep === 2 && state.phase !== PHASES.step3Ready
-      ? "is-active"
-      : state.winner || state.lastResult
-        ? "is-complete"
-        : "";
-  const step3Status =
-    state.phase === PHASES.step3Ready ? "is-active" : state.lastResult ? "is-complete" : "";
-
-  elements.stepPills.forEach((pill) => {
-    pill.className = "step-pill";
-    const step = Number.parseInt(pill.dataset.step, 10);
-    const status = step === 1 ? step1Status : step === 2 ? step2Status : step3Status;
-    if (status) {
-      pill.classList.add(status);
-    }
-  });
-
   elements.sessionOverlay.hidden = !state.overlayOpen;
   document.body.classList.toggle("overlay-open", state.overlayOpen);
-  elements.drawPanel.classList.toggle("is-visible", state.overlayOpen && state.activeStep === 1);
-  elements.spinPanel.classList.toggle(
-    "is-visible",
-    state.overlayOpen && (state.activeStep === 2 || state.activeStep === 3)
-  );
+  const drawVisible = state.overlayOpen && state.activeStep === 1;
+  const spinVisible = state.overlayOpen && state.activeStep >= 2;
+  elements.drawContent.hidden = !drawVisible;
+  elements.drawActions.hidden = !drawVisible;
+  elements.spinContent.hidden = !spinVisible;
+  elements.spinActions.hidden = !spinVisible;
+
+  if (drawVisible) {
+    elements.windowStepLabel.textContent = "Step 1";
+    elements.windowTitle.textContent = "10 Lucky Students";
+    elements.windowCopy.textContent =
+      "This floating window reveals 10 randomly selected students one by one.";
+  } else if (spinVisible) {
+    elements.windowStepLabel.textContent = "Step 2";
+    elements.windowTitle.textContent = "Spin the Wheel";
+    elements.windowCopy.innerHTML =
+      "Press <code>Start Spin</code>, let the wheel run, then hit <code>Stop</code> exactly when you want.";
+  }
 }
 
 function renderSelectedStudents(revealIndex) {
@@ -619,53 +590,42 @@ function renderSpinReadout() {
   `;
 }
 
-function renderWinnerCard() {
+function renderWinnerDialog() {
   if (!state.winner) {
-    elements.winnerCard.className = "winner-card muted";
-    elements.winnerCard.innerHTML = `
-      <p class="winner-label">Speaker</p>
-      <h3>Waiting for the wheel</h3>
-      <p>Stop the wheel first, then continue to the judgment dialog.</p>
-    `;
+    elements.dialogStepLabel.textContent = "Lucky Student";
+    elements.dialogTitle.textContent = "Selected Student";
+    elements.dialogCopy.innerHTML = "";
+    elements.dialogQuestion.hidden = true;
+    elements.dialogNextBtn.hidden = false;
+    elements.markCorrectBtn.hidden = true;
+    elements.markWrongBtn.hidden = true;
     return;
   }
 
-  const resultNote =
-    state.lastResult && state.lastResult.index === state.winner.__index
-      ? `<p>Latest result: ${state.lastResult.correct ? "Correct" : "Wrong"}</p>`
-      : "";
-  const label =
-    state.phase === PHASES.step2Stopped || state.phase === PHASES.step3Ready
-      ? "Current speaker"
-      : "Last speaker";
-
-  elements.winnerCard.className = "winner-card";
-  elements.winnerCard.innerHTML = `
-    <p class="winner-label">${label}</p>
-    <h3>${escapeHtml(formatName(state.winner))}</h3>
-    <p>ID: ${escapeHtml(state.winner[state.headerMap.idNumber])}</p>
-    <p>${escapeHtml(state.winner[state.headerMap.email])}</p>
-    <p>Current bonus: ${escapeHtml(state.winner[state.headerMap.bonus])}</p>
-    ${resultNote}
+  elements.dialogCopy.innerHTML = `
+    <article class="dialog-student-inner">
+      <span class="badge">+${escapeHtml(state.winner[state.headerMap.bonus])}</span>
+      <h3>${escapeHtml(formatName(state.winner))}</h3>
+      <p>ID: ${escapeHtml(state.winner[state.headerMap.idNumber])}</p>
+      <p>${escapeHtml(state.winner[state.headerMap.email])}</p>
+    </article>
   `;
-}
 
-function renderSummary() {
-  if (!state.students.length) {
-    elements.summaryList.innerHTML = "<li>No roster loaded.</li>";
-    return;
+  if (state.winnerDialogMode === "judge") {
+    elements.dialogStepLabel.textContent = "Step 3";
+    elements.dialogTitle.textContent = "Answer Result";
+    elements.dialogQuestion.hidden = false;
+    elements.dialogNextBtn.hidden = true;
+    elements.markCorrectBtn.hidden = false;
+    elements.markWrongBtn.hidden = false;
+  } else {
+    elements.dialogStepLabel.textContent = "Lucky Student";
+    elements.dialogTitle.textContent = "Selected Student";
+    elements.dialogQuestion.hidden = true;
+    elements.dialogNextBtn.hidden = false;
+    elements.markCorrectBtn.hidden = true;
+    elements.markWrongBtn.hidden = true;
   }
-
-  const bonusTotal = state.students.reduce(
-    (sum, student) => sum + (Number.parseInt(student[state.headerMap.bonus], 10) || 0),
-    0
-  );
-
-  elements.summaryList.innerHTML = `
-    <li>${state.students.length} students loaded from ${escapeHtml(state.sourceFileName)}.</li>
-    <li>${state.selectedTen.length} students are currently on the shortlist.</li>
-    <li>Total recorded bonus points: ${bonusTotal}.</li>
-  `;
 }
 
 function updateActionState() {
@@ -676,10 +636,8 @@ function updateActionState() {
   elements.toSpinBtn.disabled = state.phase !== PHASES.step1Done;
   elements.spinStartBtn.disabled = state.phase !== PHASES.step2Ready;
   elements.spinStopBtn.disabled = state.phase !== PHASES.step2Spinning;
-  elements.judgeBtn.disabled = state.phase !== PHASES.step2Stopped;
+  elements.showStudentBtn.disabled = state.phase !== PHASES.step2Stopped;
   elements.downloadBtn.disabled = !hasRoster || busy;
-  elements.syncBtn.disabled = !hasRoster || !hasSyncConfig() || busy;
-  elements.phaseNote.textContent = getPhaseNote();
 }
 
 function getPhaseNote() {
@@ -732,9 +690,7 @@ function modulo(value, divisor) {
 }
 
 function openResultDialog(student) {
-  elements.dialogTitle.textContent = `Did ${formatName(student)} answer correctly?`;
-  elements.dialogCopy.textContent = `${student[state.headerMap.idNumber]} · ${student[state.headerMap.email]}`;
-
+  renderWinnerDialog();
   if (typeof elements.dialog.showModal === "function") {
     elements.dialog.showModal();
     return;
@@ -768,91 +724,6 @@ function downloadCsv() {
   link.download = state.sourceFileName.replace(/\.csv$/i, "") + "-updated.csv";
   link.click();
   URL.revokeObjectURL(url);
-  addLog("Downloaded the updated CSV.");
-}
-
-async function syncToGitHub(isAutomatic) {
-  if (!state.students.length) {
-    return;
-  }
-
-  const owner = elements.githubOwner.value.trim();
-  const repo = elements.githubRepo.value.trim();
-  const branch = elements.githubBranch.value.trim() || "main";
-  const path = elements.githubPath.value.trim() || "students.csv";
-  const token = elements.githubToken.value.trim();
-
-  if (!owner || !repo || !token) {
-    if (!isAutomatic) {
-      setStatus("Owner, repo, and token are required for GitHub sync.", true);
-    }
-    return;
-  }
-
-  const csv = buildCsv();
-  const headers = {
-    Accept: "application/vnd.github+json",
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
-  const encodedPath = encodeGitHubPath(path);
-
-  let sha;
-  const currentResponse = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}`,
-    { headers }
-  );
-
-  if (currentResponse.ok) {
-    const currentData = await currentResponse.json();
-    sha = currentData.sha;
-  } else if (currentResponse.status !== 404) {
-    const errorBody = await currentResponse.json().catch(() => ({}));
-    throw new Error(errorBody.message || "Could not read the current file from GitHub.");
-  }
-
-  const payload = {
-    message: `Update bonus scores from Lecture Lucky Spin (${new Date().toISOString()})`,
-    branch,
-    content: toBase64(csv),
-    sha,
-  };
-
-  const writeResponse = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}`,
-    {
-      method: "PUT",
-      headers,
-      body: JSON.stringify(payload),
-    }
-  );
-
-  if (!writeResponse.ok) {
-    const errorBody = await writeResponse.json().catch(() => ({}));
-    throw new Error(errorBody.message || "GitHub rejected the file update.");
-  }
-
-  const prefix = isAutomatic ? "Auto-synced" : "Synced";
-  setStatus(`${prefix} bonus updates to ${owner}/${repo}:${path}.`);
-  addLog(`${prefix} CSV back to GitHub.`);
-}
-
-function maybeAutoSync() {
-  if (!hasSyncConfig()) {
-    return;
-  }
-
-  syncToGitHub(true).catch((error) => {
-    setStatus(`Bonus updated locally, but GitHub sync failed: ${error.message}`, true);
-  });
-}
-
-function hasSyncConfig() {
-  return (
-    elements.githubOwner.value.trim() &&
-    elements.githubRepo.value.trim() &&
-    elements.githubToken.value.trim()
-  );
 }
 
 function buildCsv() {
@@ -879,21 +750,6 @@ function escapeCsv(value) {
 
 function formatName(student) {
   return `${student[state.headerMap.firstName]} ${student[state.headerMap.lastName]}`.trim();
-}
-
-function addLog(message) {
-  const entry = document.createElement("article");
-  entry.className = "log-item";
-  entry.innerHTML = `
-    <time>${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
-    <p>${escapeHtml(message)}</p>
-  `;
-
-  if (elements.activityLog.textContent.includes("No activity yet.")) {
-    elements.activityLog.innerHTML = "";
-  }
-
-  elements.activityLog.prepend(entry);
 }
 
 function setStatus(message, isError = false) {
@@ -934,14 +790,6 @@ function toBase64(value) {
   return btoa(unescape(encodeURIComponent(value)));
 }
 
-function encodeGitHubPath(path) {
-  return path
-    .split("/")
-    .filter(Boolean)
-    .map((part) => encodeURIComponent(part))
-    .join("/");
-}
-
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -973,8 +821,8 @@ function guessRepoConfig() {
 }
 
 function applyRepoGuess() {
-  elements.githubOwner.value = state.repoGuess.owner;
-  elements.githubRepo.value = state.repoGuess.repo;
-  elements.githubBranch.value = state.repoGuess.branch;
-  elements.githubPath.value = state.repoGuess.path;
+}
+
+function openWinnerDialog() {
+  openResultDialog(state.winner);
 }

@@ -12,200 +12,93 @@
 
     <main class="app-shell">
       <section class="hero-panel">
-        <p class="eyebrow">Classroom Flow</p>
-        <h1>Lecture Lucky Spin</h1>
+        <p class="eyebrow">Andie's Classroom</p>
+        <h1>Welcome to Andie's Lecture</h1>
         <p class="hero-copy">
-          The app loads <code>students.csv</code> from this repository by default.
-          Press <code>Start</code> to reveal 10 random students, move to the wheel,
-          spin until you decide to stop, then score the answer in the final dialog.
+          Press <code>Start</code> to begin the lucky draw.
         </p>
         <div class="hero-actions">
           <button id="start-btn" class="primary-btn hero-start-btn" type="button" disabled>
             Start
           </button>
-          <p id="status-text" class="status-text">
-            Loading students.csv from the repository.
-          </p>
         </div>
-      </section>
-
-      <section class="step-strip" aria-label="Session steps">
-        <article class="step-pill" data-step="1">
-          <span class="step-index">01</span>
-          <div>
-            <p>Draw 10</p>
-            <strong>Reveal the random shortlist</strong>
-          </div>
-        </article>
-        <article class="step-pill" data-step="2">
-          <span class="step-index">02</span>
-          <div>
-            <p>Live Spin</p>
-            <strong>Start and stop the wheel yourself</strong>
-          </div>
-        </article>
-        <article class="step-pill" data-step="3">
-          <span class="step-index">03</span>
-          <div>
-            <p>Judge</p>
-            <strong>Mark correct or wrong in the dialog</strong>
-          </div>
-        </article>
-      </section>
-
-      <section class="utility-grid">
-        <article class="panel controls-panel">
-          <div class="panel-heading">
-            <h2>Session Snapshot</h2>
-            <p id="phase-note">Load the roster, then start the first reveal.</p>
-          </div>
-          <ul id="summary-list" class="summary-list">
-            <li>No roster loaded.</li>
-          </ul>
-        </article>
-      </section>
-
-      <section class="bottom-grid">
-        <article class="panel">
-          <div class="panel-heading">
-            <h2>GitHub Sync</h2>
-            <p>
-              Optional. Fill these fields only if you want the updated
-              <code>bonus</code> values committed back to the repository.
-            </p>
-          </div>
-          <div class="sync-grid">
-            <label>
-              <span>Owner</span>
-              <input id="github-owner" type="text" placeholder="github-username" />
-            </label>
-            <label>
-              <span>Repo</span>
-              <input id="github-repo" type="text" placeholder="LectureLuckySpin" />
-            </label>
-            <label>
-              <span>Branch</span>
-              <input id="github-branch" type="text" value="main" />
-            </label>
-            <label>
-              <span>CSV Path</span>
-              <input id="github-path" type="text" value="students.csv" />
-            </label>
-            <label class="token-field">
-              <span>Token</span>
-              <input
-                id="github-token"
-                type="password"
-                placeholder="Fine-grained token with Contents write access"
-              />
-            </label>
-          </div>
-          <div class="button-row">
-            <button id="sync-btn" class="primary-btn" type="button" disabled>
-              Sync to GitHub
-            </button>
-          </div>
-          <p class="status-text subtle">
-            The token stays in the browser only. If sync is not configured, the app
-            still updates and exports the CSV locally.
-          </p>
-        </article>
-
-        <article class="panel">
-          <div class="panel-heading">
-            <h2>Activity</h2>
-            <p>The latest draw, spin, and scoring actions appear here.</p>
-          </div>
-          <div id="activity-log" class="activity-log">
-            <p>No activity yet.</p>
-          </div>
-        </article>
+        <p id="status-text" class="status-text hero-status">
+          Loading students.csv from the repository.
+        </p>
       </section>
     </main>
 
     <div id="session-overlay" class="session-overlay" hidden>
       <div class="session-backdrop"></div>
 
-      <article id="draw-panel" class="panel step-window">
+      <article id="session-window" class="panel step-window is-visible">
         <div class="window-topbar">
           <div>
-            <p class="eyebrow">Step 1</p>
-            <h2>Reveal 10 Students</h2>
+            <p id="window-step-label" class="eyebrow">Step 1</p>
+            <h2 id="window-title">Reveal 10 Students</h2>
           </div>
           <button id="close-session-btn" class="ghost-btn window-close" type="button">
             Close
           </button>
         </div>
-        <p class="window-copy">
+        <p id="window-copy" class="window-copy">
           The ten selected students appear one by one in this floating window.
         </p>
-        <div id="selected-grid" class="selected-grid empty-state">
-          <p>Press Start to begin the first draw.</p>
+
+        <div id="draw-content" class="session-content">
+          <div id="selected-grid" class="selected-grid empty-state">
+            <p>Press Start to begin the first draw.</p>
+          </div>
         </div>
-        <div class="button-row modal-actions">
+
+        <div id="spin-content" class="session-content" hidden>
+          <div id="wheel-shell" class="wheel-shell is-empty">
+            <div class="wheel-pointer" aria-hidden="true"></div>
+            <div id="wheel-disc" class="wheel-disc">
+              <div id="wheel-items" class="wheel-items"></div>
+              <div class="wheel-core">SPIN</div>
+            </div>
+            <div id="wheel-placeholder" class="wheel-placeholder">
+              Draw 10 students first, then go to the wheel.
+            </div>
+          </div>
+          <div id="spin-readout" class="spin-readout muted">
+            The live pointer will show who is under the arrow.
+          </div>
+        </div>
+
+        <div id="draw-actions" class="button-row modal-actions">
           <button id="to-spin-btn" class="secondary-btn" type="button" disabled>
             Next Step
           </button>
         </div>
-      </article>
 
-      <article id="spin-panel" class="panel step-window">
-        <div class="window-topbar">
-          <div>
-            <p class="eyebrow">Step 2</p>
-            <h2>Live Wheel</h2>
-          </div>
-          <button class="ghost-btn window-close" type="button" data-close-session>
-            Close
-          </button>
-        </div>
-        <p class="window-copy">
-          Press <code>Start Spin</code>, let the wheel run, then hit
-          <code>Stop</code> exactly when you want.
-        </p>
-        <div id="wheel-shell" class="wheel-shell is-empty">
-          <div class="wheel-pointer" aria-hidden="true"></div>
-          <div id="wheel-disc" class="wheel-disc">
-            <div id="wheel-items" class="wheel-items"></div>
-            <div class="wheel-core">SPIN</div>
-          </div>
-          <div id="wheel-placeholder" class="wheel-placeholder">
-            Draw 10 students first, then go to the wheel.
-          </div>
-        </div>
-        <div id="spin-readout" class="spin-readout muted">
-          The live pointer will show who is under the arrow.
-        </div>
-        <div id="winner-card" class="winner-card muted">
-          <p class="winner-label">Speaker</p>
-          <h3>Waiting for the wheel</h3>
-          <p>Stop the wheel first, then continue to the judgment dialog.</p>
-        </div>
-        <div class="button-row modal-actions">
+        <div id="spin-actions" class="button-row modal-actions" hidden>
           <button id="spin-start-btn" class="primary-btn" type="button" disabled>
             Start Spin
           </button>
           <button id="spin-stop-btn" class="secondary-btn" type="button" disabled>
             Stop
           </button>
-          <button id="judge-btn" class="secondary-btn" type="button" disabled>
-            Next Step
-          </button>
-          <button id="download-btn" class="secondary-btn" type="button" disabled>
-            Download Updated CSV
+          <button id="show-student-btn" class="secondary-btn" type="button" disabled>
+            View Student
           </button>
         </div>
       </article>
     </div>
 
-    <dialog id="result-dialog" class="result-dialog">
+    <dialog id="winner-dialog" class="result-dialog winner-dialog">
       <form method="dialog">
-        <p class="eyebrow">Step 3</p>
-        <h2 id="dialog-title">Record result</h2>
-        <p id="dialog-copy">Mark whether the selected student answered correctly.</p>
+        <p id="dialog-step-label" class="eyebrow">Lucky Student</p>
+        <h2 id="dialog-title">Selected Student</h2>
+        <div id="dialog-copy" class="dialog-student-card"></div>
+        <p id="dialog-question" class="dialog-question" hidden>
+          Did this student answer correctly?
+        </p>
         <div class="dialog-button-row">
-          <button id="mark-correct-btn" class="primary-btn" type="button">Correct</button>
-          <button id="mark-wrong-btn" class="secondary-btn" type="button">Wrong</button>
+          <button id="dialog-next-btn" class="primary-btn" type="button">Next Step</button>
+          <button id="mark-correct-btn" class="primary-btn" type="button" hidden>Correct</button>
+          <button id="mark-wrong-btn" class="secondary-btn" type="button" hidden>Wrong</button>
           <button class="ghost-btn" type="submit">Close</button>
         </div>
       </form>
