@@ -128,7 +128,6 @@ code {
 
 .step-strip,
 .utility-grid,
-.flow-grid,
 .bottom-grid {
   display: grid;
   gap: 1.1rem;
@@ -142,10 +141,6 @@ code {
 .utility-grid,
 .bottom-grid {
   grid-template-columns: 1fr;
-}
-
-.flow-grid {
-  grid-template-columns: 1.08fr 0.92fr;
 }
 
 .step-pill,
@@ -344,23 +339,6 @@ button:disabled {
   margin: 1rem 0 0;
   padding-left: 1.1rem;
   line-height: 1.7;
-}
-
-.step-panel {
-  min-height: 100%;
-  transition:
-    opacity 220ms ease,
-    transform 220ms ease,
-    border-color 220ms ease;
-}
-
-.step-panel.is-dimmed {
-  opacity: 0.66;
-  transform: scale(0.995);
-}
-
-.step-panel.is-active {
-  border-color: rgba(127, 145, 128, 0.28);
 }
 
 .selected-grid {
@@ -651,6 +629,70 @@ button:disabled {
   margin-top: 1.1rem;
 }
 
+body.overlay-open {
+  overflow: hidden;
+}
+
+.session-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+}
+
+.session-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(84, 70, 61, 0.26);
+  backdrop-filter: blur(8px);
+}
+
+.step-window {
+  position: relative;
+  z-index: 1;
+  width: min(1120px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  display: none;
+  padding: 1.4rem;
+  background: rgba(248, 242, 236, 0.94);
+  border-color: rgba(127, 145, 128, 0.22);
+  box-shadow: 0 34px 90px rgba(72, 61, 54, 0.22);
+}
+
+.step-window.is-visible {
+  display: block;
+  animation: window-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.window-topbar {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.window-topbar h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.window-copy {
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.window-close {
+  padding-inline: 0.8rem;
+}
+
+.modal-actions {
+  margin-top: 1.15rem;
+}
+
 @keyframes card-in {
   from {
     opacity: 0;
@@ -662,10 +704,20 @@ button:disabled {
   }
 }
 
+@keyframes window-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (max-width: 1050px) {
   .step-strip,
   .utility-grid,
-  .flow-grid,
   .bottom-grid,
   .sync-grid {
     grid-template-columns: 1fr;
@@ -685,6 +737,10 @@ button:disabled {
   .hero-panel,
   .panel {
     padding: 1.1rem;
+  }
+
+  .step-window {
+    padding: 1.05rem;
   }
 
   .step-pill {

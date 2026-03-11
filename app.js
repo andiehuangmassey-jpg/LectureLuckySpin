@@ -49,6 +49,7 @@ const state = {
   spinLastTime: null,
   animationFrame: null,
   revealToken: 0,
+  overlayOpen: false,
 };
 
 const elements = {
@@ -69,8 +70,10 @@ const elements = {
   wheelPlaceholder: document.querySelector("#wheel-placeholder"),
   spinReadout: document.querySelector("#spin-readout"),
   winnerCard: document.querySelector("#winner-card"),
+  sessionOverlay: document.querySelector("#session-overlay"),
   drawPanel: document.querySelector("#draw-panel"),
   spinPanel: document.querySelector("#spin-panel"),
+  closeSessionButtons: Array.from(document.querySelectorAll("[data-close-session], #close-session-btn")),
   activityLog: document.querySelector("#activity-log"),
   dialog: document.querySelector("#result-dialog"),
   dialogTitle: document.querySelector("#dialog-title"),
@@ -102,6 +105,9 @@ function bindEvents() {
   elements.judgeBtn.addEventListener("click", moveToJudgeStep);
   elements.downloadBtn.addEventListener("click", downloadCsv);
   elements.syncBtn.addEventListener("click", () => syncToGitHub(false));
+  elements.closeSessionButtons.forEach((button) => {
+    button.addEventListener("click", closeSessionOverlay);
+  });
   elements.markCorrectBtn.addEventListener("click", () => resolveWinner(true));
   elements.markWrongBtn.addEventListener("click", () => resolveWinner(false));
   elements.dialog.addEventListener("close", handleDialogClose);
@@ -178,6 +184,7 @@ function resetFlow() {
   state.pointerIndex = null;
   state.phase = state.students.length ? PHASES.step1Ready : PHASES.idle;
   state.activeStep = 1;
+  state.overlayOpen = false;
   state.revealToken += 1;
 }
 
@@ -293,6 +300,7 @@ async function runSelectionAnimation() {
   state.revealToken += 1;
   const token = state.revealToken;
 
+  state.overlayOpen = true;
   state.phase = PHASES.step1Drawing;
   state.activeStep = 1;
   state.selectedTen = [];
@@ -330,13 +338,13 @@ function moveToSpinStep() {
     return;
   }
 
+  state.overlayOpen = true;
   state.phase = PHASES.step2Ready;
   state.activeStep = 2;
   renderFlowState();
   updateActionState();
   setStatus("Step 2 ready. Press Start Spin, then Stop whenever you want.");
   addLog("Moved to the live wheel step.");
-  scrollIntoViewIfNeeded(elements.spinPanel);
 }
 
 function startLiveSpin() {
@@ -433,11 +441,19 @@ function moveToJudgeStep() {
     return;
   }
 
+  state.overlayOpen = true;
   state.phase = PHASES.step3Ready;
   state.activeStep = 3;
   renderFlowState();
   updateActionState();
   openResultDialog(state.winner);
+}
+
+function closeSessionOverlay() {
+  safeCloseDialog();
+  resetFlow();
+  renderAll();
+  setStatus("Session closed. Press Start to open the first floating step again.");
 }
 
 function handleDialogClose() {
@@ -512,10 +528,13 @@ function renderFlowState() {
     }
   });
 
-  elements.drawPanel.classList.toggle("is-active", state.activeStep === 1);
-  elements.drawPanel.classList.toggle("is-dimmed", state.activeStep > 1);
-  elements.spinPanel.classList.toggle("is-active", state.activeStep >= 2);
-  elements.spinPanel.classList.toggle("is-dimmed", state.activeStep < 2);
+  elements.sessionOverlay.hidden = !state.overlayOpen;
+  document.body.classList.toggle("overlay-open", state.overlayOpen);
+  elements.drawPanel.classList.toggle("is-visible", state.overlayOpen && state.activeStep === 1);
+  elements.spinPanel.classList.toggle(
+    "is-visible",
+    state.overlayOpen && (state.activeStep === 2 || state.activeStep === 3)
+  );
 }
 
 function renderSelectedStudents(revealIndex) {
@@ -958,10 +977,4 @@ function applyRepoGuess() {
   elements.githubRepo.value = state.repoGuess.repo;
   elements.githubBranch.value = state.repoGuess.branch;
   elements.githubPath.value = state.repoGuess.path;
-}
-
-function scrollIntoViewIfNeeded(element) {
-  if (typeof element.scrollIntoView === "function") {
-    element.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
 }

@@ -56,71 +56,12 @@
       <section class="utility-grid">
         <article class="panel controls-panel">
           <div class="panel-heading">
-            <h2>Teacher Controls</h2>
+            <h2>Session Snapshot</h2>
             <p id="phase-note">Load the roster, then start the first reveal.</p>
-          </div>
-          <div class="button-row">
-            <button id="to-spin-btn" class="secondary-btn" type="button" disabled>
-              Next Step
-            </button>
-            <button id="spin-start-btn" class="primary-btn" type="button" disabled>
-              Start Spin
-            </button>
-            <button id="spin-stop-btn" class="secondary-btn" type="button" disabled>
-              Stop
-            </button>
-            <button id="judge-btn" class="secondary-btn" type="button" disabled>
-              Next Step
-            </button>
-            <button id="download-btn" class="secondary-btn" type="button" disabled>
-              Download Updated CSV
-            </button>
           </div>
           <ul id="summary-list" class="summary-list">
             <li>No roster loaded.</li>
           </ul>
-        </article>
-      </section>
-
-      <section class="flow-grid">
-        <article id="draw-panel" class="panel step-panel">
-          <div class="panel-heading">
-            <h2>Step 1 · Reveal 10 Students</h2>
-            <p>
-              When you press <code>Start</code>, the ten cards appear one by one.
-            </p>
-          </div>
-          <div id="selected-grid" class="selected-grid empty-state">
-            <p>Press Start to begin the first draw.</p>
-          </div>
-        </article>
-
-        <article id="spin-panel" class="panel step-panel">
-          <div class="panel-heading">
-            <h2>Step 2 · Live Wheel</h2>
-            <p>
-              Move to this step, press <code>Start Spin</code>, then stop the wheel
-              when you want.
-            </p>
-          </div>
-          <div id="wheel-shell" class="wheel-shell is-empty">
-            <div class="wheel-pointer" aria-hidden="true"></div>
-            <div id="wheel-disc" class="wheel-disc">
-              <div id="wheel-items" class="wheel-items"></div>
-              <div class="wheel-core">SPIN</div>
-            </div>
-            <div id="wheel-placeholder" class="wheel-placeholder">
-              Draw 10 students first, then go to the wheel.
-            </div>
-          </div>
-          <div id="spin-readout" class="spin-readout muted">
-            The live pointer will show who is under the arrow.
-          </div>
-          <div id="winner-card" class="winner-card muted">
-            <p class="winner-label">Speaker</p>
-            <h3>Waiting for the wheel</h3>
-            <p>Stop the wheel first, then continue to the judgment dialog.</p>
-          </div>
         </article>
       </section>
 
@@ -181,6 +122,81 @@
         </article>
       </section>
     </main>
+
+    <div id="session-overlay" class="session-overlay" hidden>
+      <div class="session-backdrop"></div>
+
+      <article id="draw-panel" class="panel step-window">
+        <div class="window-topbar">
+          <div>
+            <p class="eyebrow">Step 1</p>
+            <h2>Reveal 10 Students</h2>
+          </div>
+          <button id="close-session-btn" class="ghost-btn window-close" type="button">
+            Close
+          </button>
+        </div>
+        <p class="window-copy">
+          The ten selected students appear one by one in this floating window.
+        </p>
+        <div id="selected-grid" class="selected-grid empty-state">
+          <p>Press Start to begin the first draw.</p>
+        </div>
+        <div class="button-row modal-actions">
+          <button id="to-spin-btn" class="secondary-btn" type="button" disabled>
+            Next Step
+          </button>
+        </div>
+      </article>
+
+      <article id="spin-panel" class="panel step-window">
+        <div class="window-topbar">
+          <div>
+            <p class="eyebrow">Step 2</p>
+            <h2>Live Wheel</h2>
+          </div>
+          <button class="ghost-btn window-close" type="button" data-close-session>
+            Close
+          </button>
+        </div>
+        <p class="window-copy">
+          Press <code>Start Spin</code>, let the wheel run, then hit
+          <code>Stop</code> exactly when you want.
+        </p>
+        <div id="wheel-shell" class="wheel-shell is-empty">
+          <div class="wheel-pointer" aria-hidden="true"></div>
+          <div id="wheel-disc" class="wheel-disc">
+            <div id="wheel-items" class="wheel-items"></div>
+            <div class="wheel-core">SPIN</div>
+          </div>
+          <div id="wheel-placeholder" class="wheel-placeholder">
+            Draw 10 students first, then go to the wheel.
+          </div>
+        </div>
+        <div id="spin-readout" class="spin-readout muted">
+          The live pointer will show who is under the arrow.
+        </div>
+        <div id="winner-card" class="winner-card muted">
+          <p class="winner-label">Speaker</p>
+          <h3>Waiting for the wheel</h3>
+          <p>Stop the wheel first, then continue to the judgment dialog.</p>
+        </div>
+        <div class="button-row modal-actions">
+          <button id="spin-start-btn" class="primary-btn" type="button" disabled>
+            Start Spin
+          </button>
+          <button id="spin-stop-btn" class="secondary-btn" type="button" disabled>
+            Stop
+          </button>
+          <button id="judge-btn" class="secondary-btn" type="button" disabled>
+            Next Step
+          </button>
+          <button id="download-btn" class="secondary-btn" type="button" disabled>
+            Download Updated CSV
+          </button>
+        </div>
+      </article>
+    </div>
 
     <dialog id="result-dialog" class="result-dialog">
       <form method="dialog">
