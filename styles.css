@@ -87,6 +87,19 @@ code {
   text-align: center;
 }
 
+.welcome-panel {
+  width: min(760px, calc(100vw - 2rem));
+  padding: 4.4rem 2.6rem;
+}
+
+.welcome-title {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", serif;
+  font-size: clamp(2.9rem, 6vw, 5.4rem);
+  line-height: 0.96;
+  letter-spacing: 0.01em;
+}
+
 .hero-panel h1,
 .winner-card h3,
 .result-dialog h2 {
@@ -111,9 +124,10 @@ code {
 
 .hero-copy {
   max-width: 34rem;
-  margin: 1rem auto 0;
+  margin: 1.15rem auto 0;
   line-height: 1.7;
   color: var(--text);
+  font-size: 1.02rem;
 }
 
 .hero-actions {
@@ -123,8 +137,9 @@ code {
 }
 
 .hero-start-btn {
-  padding-inline: 2rem;
-  font-size: 1rem;
+  min-width: 170px;
+  padding: 1rem 2.4rem;
+  font-size: 1.02rem;
 }
 
 .panel {
@@ -440,6 +455,10 @@ button:disabled {
 .hero-status {
   max-width: 34rem;
   margin: 0.9rem auto 0;
+}
+
+.is-hidden {
+  display: none;
 }
 
 body.overlay-open {

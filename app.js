@@ -754,6 +754,7 @@ function formatName(student) {
 
 function setStatus(message, isError = false) {
   elements.statusText.textContent = message;
+  elements.statusText.classList.toggle("is-hidden", !isError);
   elements.statusText.style.color = isError ? "#9b5f55" : "";
 }
 
