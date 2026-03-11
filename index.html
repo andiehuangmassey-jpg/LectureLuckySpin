@@ -14,15 +14,19 @@
       <section class="hero-panel welcome-panel">
         <h1 class="welcome-title">Welcome to Andie's Lecture</h1>
         <p class="hero-copy">
-          Press <code>Start</code> to enter the lucky draw.
+          Load a local roster CSV first. Student data stays in this browser session only.
         </p>
         <div class="hero-actions">
+          <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
+          <button id="load-csv-btn" class="secondary-btn" type="button">
+            Load CSV
+          </button>
           <button id="start-btn" class="primary-btn hero-start-btn" type="button" disabled>
             Start
           </button>
         </div>
         <p id="status-text" class="status-text hero-status is-hidden">
-          Loading students.csv from the repository.
+          Load a local `students.csv` file to begin.
         </p>
       </section>
     </main>

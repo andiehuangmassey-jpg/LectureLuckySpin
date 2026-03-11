@@ -17,20 +17,6 @@ const PHASES = {
   step3Ready: "step3-ready",
 };
 
-const MOCK_CSV = `First Name,Last Name,ID Number,Email Address,bonus
-Amelia,Clark,2026001,amelia.clark@example.edu,0
-Noah,Turner,2026002,noah.turner@example.edu,1
-Sophia,Ramirez,2026003,sophia.ramirez@example.edu,0
-Liam,Patel,2026004,liam.patel@example.edu,0
-Olivia,Bennett,2026005,olivia.bennett@example.edu,2
-Ethan,Nguyen,2026006,ethan.nguyen@example.edu,0
-Isabella,Brooks,2026007,isabella.brooks@example.edu,0
-Mason,Carter,2026008,mason.carter@example.edu,1
-Mia,Diaz,2026009,mia.diaz@example.edu,0
-Lucas,Foster,2026010,lucas.foster@example.edu,0
-Charlotte,Hayes,2026011,charlotte.hayes@example.edu,0
-James,Kim,2026012,james.kim@example.edu,0`;
-
 const state = {
   headers: [],
   headerMap: {},
@@ -51,10 +37,13 @@ const state = {
   animationFrame: null,
   revealToken: 0,
   overlayOpen: false,
+  loadingCsv: false,
 };
 
 const elements = {
   statusText: document.querySelector("#status-text"),
+  loadCsvBtn: document.querySelector("#load-csv-btn"),
+  csvFileInput: document.querySelector("#csv-file-input"),
   startBtn: document.querySelector("#start-btn"),
   toSpinBtn: document.querySelector("#to-spin-btn"),
   spinStartBtn: document.querySelector("#spin-start-btn"),
@@ -91,11 +80,13 @@ bootstrap();
 function bootstrap() {
   applyRepoGuess();
   bindEvents();
-  applyCsvText(MOCK_CSV, "Built-in mock data is ready.");
-  loadBundledCsv(true);
+  setStatus("Load a local students CSV to begin.");
+  renderAll();
 }
 
 function bindEvents() {
+  elements.loadCsvBtn.addEventListener("click", openCsvPicker);
+  elements.csvFileInput.addEventListener("change", handleCsvSelection);
   elements.startBtn.addEventListener("click", runSelectionAnimation);
   elements.toSpinBtn.addEventListener("click", moveToSpinStep);
   elements.spinStartBtn.addEventListener("click", startLiveSpin);
@@ -113,24 +104,34 @@ function bindEvents() {
   elements.dialog.addEventListener("close", handleDialogClose);
 }
 
-async function loadBundledCsv(silent) {
-  try {
-    const response = await fetch("./students.csv", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error("students.csv not found");
-    }
+function openCsvPicker() {
+  elements.csvFileInput.click();
+}
 
-    state.sourceFileName = "students.csv";
-    const text = await response.text();
-    applyCsvText(
-      text,
-      silent
-        ? "students.csv loaded from the repository."
-        : "Reloaded students.csv from the repository."
-    );
+async function handleCsvSelection(event) {
+  const [file] = event.target.files || [];
+  if (!file) {
+    return;
+  }
+
+  clearRoster();
+  state.loadingCsv = true;
+  renderAll();
+  updateActionState();
+  setStatus(`Reading ${file.name}...`);
+
+  try {
+    const text = await file.text();
+    state.sourceFileName = file.name || "students.csv";
+    applyCsvText(text, `${state.sourceFileName} loaded locally. Data stays in this browser session.`);
   } catch (error) {
-    state.sourceFileName = "mock-students.csv";
-    setStatus("students.csv could not be loaded, so the app is using built-in mock data.", true);
+    clearRoster();
+    renderAll();
+    setStatus("The selected CSV could not be read.", true);
+  } finally {
+    state.loadingCsv = false;
+    updateActionState();
+    event.target.value = "";
   }
 }
 
@@ -171,6 +172,25 @@ function resetFlow() {
   state.currentRotation = 0;
   state.pointerIndex = null;
   state.phase = state.students.length ? PHASES.step1Ready : PHASES.idle;
+  state.activeStep = 1;
+  state.winnerDialogMode = "preview";
+  state.overlayOpen = false;
+  state.revealToken += 1;
+}
+
+function clearRoster() {
+  stopAnimations();
+  safeCloseDialog();
+  state.headers = [];
+  state.headerMap = {};
+  state.students = [];
+  state.sourceFileName = "students.csv";
+  state.selectedTen = [];
+  state.winner = null;
+  state.lastResult = null;
+  state.currentRotation = 0;
+  state.pointerIndex = null;
+  state.phase = PHASES.idle;
   state.activeStep = 1;
   state.winnerDialogMode = "preview";
   state.overlayOpen = false;
@@ -632,8 +652,9 @@ function renderWinnerDialog() {
 
 function updateActionState() {
   const hasRoster = state.students.length > 0;
-  const busy = isBusy();
+  const busy = isBusy() || state.loadingCsv;
 
+  elements.loadCsvBtn.disabled = busy;
   elements.startBtn.disabled = !hasRoster || busy;
   elements.toSpinBtn.disabled = state.phase !== PHASES.step1Done;
   elements.spinStartBtn.disabled = state.phase !== PHASES.step2Ready;
@@ -758,7 +779,7 @@ function formatName(student) {
 
 function setStatus(message, isError = false) {
   elements.statusText.textContent = message;
-  elements.statusText.classList.toggle("is-hidden", !isError);
+  elements.statusText.classList.remove("is-hidden");
   elements.statusText.style.color = isError ? "#9b5f55" : "";
 }
 
