@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lecture Lucky Spin</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page-glow page-glow-left"></div>
+    <div class="page-glow page-glow-right"></div>
+    <main class="app-shell">
+      <section class="hero-panel">
+        <p class="eyebrow">Classroom Picker</p>
+        <h1>Lecture Lucky Spin</h1>
+        <p class="hero-copy">
+          Upload a student CSV or keep one at <code>students.csv</code>. The app
+          draws 10 students, spins for one speaker, and tracks each correct
+          answer in a <code>bonus</code> column.
+        </p>
+      </section>
+
+      <section class="control-grid">
+        <article class="panel panel-upload">
+          <div class="panel-heading">
+            <h2>Roster Source</h2>
+            <p>Expected columns: First Name, Last Name, ID Number, Email Address</p>
+          </div>
+          <div class="field-stack">
+            <label class="file-field">
+              <span>Choose CSV</span>
+              <input id="csv-file" type="file" accept=".csv,text/csv" />
+            </label>
+            <button id="load-default-btn" class="secondary-btn" type="button">
+              Load bundled students.csv
+            </button>
+            <a class="text-link" href="./students.csv" download>Download example CSV</a>
+          </div>
+          <p id="status-text" class="status-text">Waiting for a CSV.</p>
+        </article>
+
+        <article class="panel panel-actions">
+          <div class="panel-heading">
+            <h2>Session Controls</h2>
+            <p>Start a fresh draw, then spin inside the selected ten.</p>
+          </div>
+          <div class="button-row">
+            <button id="start-btn" class="primary-btn" type="button" disabled>
+              Start
+            </button>
+            <button id="continue-btn" class="secondary-btn" type="button" disabled>
+              Continue
+            </button>
+            <button id="download-btn" class="secondary-btn" type="button" disabled>
+              Download Updated CSV
+            </button>
+          </div>
+          <ul id="summary-list" class="summary-list">
+            <li>No roster loaded.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="stage-grid">
+        <article class="panel panel-selection">
+          <div class="panel-heading">
+            <h2>Selected 10</h2>
+            <p>The reveal animation fills this board one student at a time.</p>
+          </div>
+          <div id="selected-grid" class="selected-grid empty-state">
+            <p>Load a roster, then press Start.</p>
+          </div>
+        </article>
+
+        <article class="panel panel-spinner">
+          <div class="panel-heading">
+            <h2>Spin Arena</h2>
+            <p>The highlighted center row is the final speaker.</p>
+          </div>
+          <div class="spinner-shell">
+            <div class="spinner-marker"></div>
+            <div id="spinner-viewport" class="spinner-viewport">
+              <div id="spinner-track" class="spinner-track">
+                <div class="spinner-placeholder">Waiting for the selected ten.</div>
+              </div>
+            </div>
+          </div>
+          <div id="winner-card" class="winner-card muted">
+            <p class="winner-label">Next speaker</p>
+            <h3>Not selected yet</h3>
+            <p>Spin after the first draw.</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="control-grid">
+        <article class="panel panel-sync">
+          <div class="panel-heading">
+            <h2>GitHub Sync</h2>
+            <p>
+              Optional. Fill this if you want the updated
+              <code>bonus</code> column committed back to your repository.
+            </p>
+          </div>
+          <div class="sync-grid">
+            <label>
+              <span>Owner</span>
+              <input id="github-owner" type="text" placeholder="github-username" />
+            </label>
+            <label>
+              <span>Repo</span>
+              <input id="github-repo" type="text" placeholder="LectureLuckySpin" />
+            </label>
+            <label>
+              <span>Branch</span>
+              <input id="github-branch" type="text" value="main" />
+            </label>
+            <label>
+              <span>CSV Path</span>
+              <input id="github-path" type="text" value="students.csv" />
+            </label>
+            <label class="token-field">
+              <span>Token</span>
+              <input
+                id="github-token"
+                type="password"
+                placeholder="Fine-grained token with Contents write access"
+              />
+            </label>
+          </div>
+          <div class="button-row">
+            <button id="sync-btn" class="primary-btn" type="button" disabled>
+              Sync to GitHub
+            </button>
+          </div>
+          <p class="status-text subtle">
+            The token is used only in your browser and is never stored by the site.
+          </p>
+        </article>
+
+        <article class="panel panel-log">
+          <div class="panel-heading">
+            <h2>Activity</h2>
+            <p>Recent draws and scoring changes appear here.</p>
+          </div>
+          <div id="activity-log" class="activity-log">
+            <p>No activity yet.</p>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <dialog id="result-dialog" class="result-dialog">
+      <form method="dialog">
+        <p class="eyebrow">Answer Check</p>
+        <h2 id="dialog-title">Record result</h2>
+        <p id="dialog-copy">Mark whether the student answered correctly.</p>
+        <div class="dialog-button-row">
+          <button id="mark-correct-btn" class="primary-btn" type="button">Correct</button>
+          <button id="mark-wrong-btn" class="secondary-btn" type="button">Wrong</button>
+          <button class="ghost-btn" type="submit">Close</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
