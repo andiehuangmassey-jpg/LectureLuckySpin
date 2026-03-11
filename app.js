@@ -90,7 +90,7 @@ bootstrap();
 function bootstrap() {
   applyRepoGuess();
   bindEvents();
-  renderAll();
+  applyCsvText(MOCK_CSV, "Built-in mock data is ready.");
   loadBundledCsv(true);
 }
 
@@ -128,16 +128,14 @@ async function loadBundledCsv(silent) {
     const text = await response.text();
     applyCsvText(
       text,
-      silent ? "students.csv loaded from the repository." : "Reloaded students.csv from the repository."
+      silent
+        ? "students.csv loaded from the repository."
+        : "Reloaded students.csv from the repository."
     );
   } catch (error) {
     state.sourceFileName = "mock-students.csv";
-    applyCsvText(
-      MOCK_CSV,
-      silent
-        ? "students.csv could not be loaded, so the app switched to built-in mock data."
-        : "students.csv could not be loaded, so the app switched to built-in mock data."
-    );
+    setStatus("students.csv could not be loaded, so the app is using built-in mock data.", true);
+    addLog(`Repository CSV load failed: ${error.message}. Continued with mock data.`);
   }
 }
 
